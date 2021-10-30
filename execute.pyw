@@ -39,6 +39,9 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+# scipy fft
+import scipy.fftpack
+
 # import for debugging
 import logging
 
@@ -201,7 +204,7 @@ class Base(QMainWindow):
         self.textEdit.verticalScrollBar().setValue(1)
 
         """
-            Main Canvas, SMA, Stop/Profit Limit Close/High/low Candle Prices
+            Amplitiude canvas information
         """
         # setup canvas for candle information
         self.canvas = MplCanvas(self, titleinfo="audio amplitude".upper(), width=5, height=4, dpi=70)
@@ -215,31 +218,31 @@ class Base(QMainWindow):
             spine.set_edgecolor('#1d1e21')
 
         """
-            Volatility Trading Indictor canvas
+            Fourier Wave Transform canvas
         """
         # setup canvas for volatility detection with 
-        self.volatility_canvas = MplCanvas(self, titleinfo="volatility indicator".upper(), width=5, height=4, dpi=70)
+        self.fft_canvas = MplCanvas(self, titleinfo="Fourier Wave Transform".upper(), width=5, height=4, dpi=70)
         
         # sets the axis facecolour and label colour
-        self.volatility_canvas.axes.set_facecolor('#23272a')
-        self.volatility_canvas.axes.set_axisbelow(True)
-        self.volatility_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+        self.fft_canvas.axes.set_facecolor('#23272a')
+        self.fft_canvas.axes.set_axisbelow(True)
+        self.fft_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
 
-        for spine in self.volatility_canvas.axes.spines.values():
+        for spine in self.fft_canvas.axes.spines.values():
             spine.set_edgecolor('#1d1e21')
 
         """
-            RSI Trading Indictor canvas
+            Spectrograph Canvas
         """
         # setup canvas for volatility detection with 
-        self.rsi_canvas = MplCanvas(self, titleinfo="rsi indicator".upper(), width=5, height=4, dpi=70)
+        self.spg_canvas = MplCanvas(self, titleinfo="spectrograph".upper(), width=5, height=4, dpi=70)
         
         # sets the axis facecolour and label colour
-        self.rsi_canvas.axes.set_facecolor('#23272a')
-        self.rsi_canvas.axes.set_axisbelow(True)
-        self.rsi_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+        self.spg_canvas.axes.set_facecolor('#23272a')
+        self.spg_canvas.axes.set_axisbelow(True)
+        self.spg_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
 
-        for spine in self.rsi_canvas.axes.spines.values():
+        for spine in self.spg_canvas.axes.spines.values():
             spine.set_edgecolor('#1d1e21')
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -265,8 +268,8 @@ class Base(QMainWindow):
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
 
         Overall_Layout.addWidget( self.canvas, 3, 1 )
-        Overall_Layout.addWidget( self.volatility_canvas, 4, 1 )
-        Overall_Layout.addWidget( self.rsi_canvas, 5, 1 )
+        Overall_Layout.addWidget( self.fft_canvas, 4, 1 )
+        Overall_Layout.addWidget( self.spg_canvas, 5, 1 )
         #Overall_Layout.addWidget( self.macd_canvas, 6, 1 )
 
         self.setGeometry(300, 300, 800, 900)        # set the size of the window
@@ -287,8 +290,8 @@ class Base(QMainWindow):
 
         # draw canvas
         self.canvas.draw()              # draw the figure first
-        self.volatility_canvas.draw()   # draw the figure first
-        self.rsi_canvas.draw()          # draw the figure first
+        self.fft_canvas.draw()   # draw the figure first
+        self.spg_canvas.draw()          # draw the figure first
         
         # attempt to initialize the audio handler object and start the audio stream
         try:
@@ -322,20 +325,20 @@ class Base(QMainWindow):
             print("override was invoked force update_plot!")
 
 
-        if len(self.audio_handler.frame_buffer) > 0:
+        # we have to unify the source of the audio data,
+        # because it handled in a separate thread and we need to synchronize it
+        source = self.audio_handler.frame_buffer
+
+        if len(source) > 0:
 
             self.canvas.flush_events()  # flush events
             self.canvas.axes.cla()      # Clear the canvas.
             self.canvas.draw_idle()     # actually draw the new content
-
-            # candle close
-            #joined_frames = ''.join(self.frames)
-            #amplitude = np.fromstring(joined_frames, np.float32)
-            #print(list(range(int(self.audio_handler.SAMPLE_RATE / self.audio_handler.CHUNK * 10))))
-            #print(list(range(len(self.audio_handler.frame_buffer))))
-            self.wave_x = list(range(len(self.audio_handler.frame_buffer)))
-            self.wave_y = self.audio_handler.frame_buffer # use the amplitude of the audio data as the y data
-            
+           
+            self.fft_data = np.fft.fft(source)
+            print(f"{self.fft_data}")
+            #.fft_y = scipy.fftpack.fft(self.audio_handler.frame_buffer)
+            self.fft_x = np.linspace(0.0, self.audio_handler.SAMPLE_RATE / 2, len(self.fft_y))
             #self.wave_x = range(0, 0 + self.audio_handler.CHUNK)
             #self.wave_y = self.audio_handler.frame_buffer[0:0 + self.audio_handler.CHUNK]
 
@@ -366,9 +369,6 @@ class Base(QMainWindow):
             #plotdata =  np.zeros((length,len(channels)))
 
 
-            # we have to unify the source of the audio data,
-            # because it handled in a separate thread and we need to synchronize it
-            source = self.audio_handler.frame_buffer
             
 
             simplified_data = []
@@ -522,9 +522,9 @@ class Base(QMainWindow):
         #         """
         #             Volatility canvas
         #         """
-        #         self.volatility_canvas.flush_events()  # flush events
-        #         self.volatility_canvas.axes.cla()      # Clear the canvas.
-        #         self.volatility_canvas.draw_idle()     # actually draw the new content
+        #         self.fft_canvas.flush_events()  # flush events
+        #         self.fft_canvas.axes.cla()      # Clear the canvas.
+        #         self.fft_canvas.draw_idle()     # actually draw the new content
 
         #         # atr
         #         self.atr_values_xdata = list(range(len(atr)))
@@ -540,57 +540,57 @@ class Base(QMainWindow):
 
         #         # plot ATR
         #         if len(atr) > 0: #and len(volatility) > 0):
-        #             self.volatility_canvas.axes.plot(self.atr_values_xdata, self.atr_values_ydata, '-', color="#fffd80", label="ATR" )
-        #             #self.volatility_canvas.axes.plot(self.volatility_values_xdata, self.volatility_values_ydata, '--', color="#FF69B4", label="Volatility" )
-        #             #self.volatility_canvas.axes.plot(self.atr_e_values_xdata, self.atr_e_values_ydata, '-.', color="#FF8C00", label="ATR-E" )
+        #             self.fft_canvas.axes.plot(self.atr_values_xdata, self.atr_values_ydata, '-', color="#fffd80", label="ATR" )
+        #             #self.fft_canvas.axes.plot(self.volatility_values_xdata, self.volatility_values_ydata, '--', color="#FF69B4", label="Volatility" )
+        #             #self.fft_canvas.axes.plot(self.atr_e_values_xdata, self.atr_e_values_ydata, '-.', color="#FF8C00", label="ATR-E" )
                     
         #             # plot the line where that if below we are allowed to buy in
-        #             self.volatility_canvas.axes.axhline(y=ATR_VOLATILITY_DETECTION_THRESHOLD, color='#505050', linestyle='--', label="Volatility detection threshold")
+        #             self.fft_canvas.axes.axhline(y=ATR_VOLATILITY_DETECTION_THRESHOLD, color='#505050', linestyle='--', label="Volatility detection threshold")
 
         #             # atraverage = numpy.mean(atr)
         #             # print("atraverage",atraverage)
-        #             # self.volatility_canvas.axes.axhline(y=atraverage, color='#252590', linestyle='--', label="ATR Average")
+        #             # self.fft_canvas.axes.axhline(y=atraverage, color='#252590', linestyle='--', label="ATR Average")
 
         #             # legend for main canvas
-        #             l2 = self.volatility_canvas.axes.legend(frameon=False, loc='lower left', fancybox=False, shadow=False)
+        #             l2 = self.fft_canvas.axes.legend(frameon=False, loc='lower left', fancybox=False, shadow=False)
 
         #             # replace text of the legend
         #             for text in l2.get_texts():
         #                 text.set_color("white")
 
         #         # background grid    
-        #         self.volatility_canvas.axes.grid(color='#2c2f33', linestyle='--')
+        #         self.fft_canvas.axes.grid(color='#2c2f33', linestyle='--')
 
         #         """
         #             RSI canvas
         #         """
-        #         self.rsi_canvas.flush_events()  # flush events
-        #         self.rsi_canvas.axes.cla()      # Clear the canvas.
-        #         self.rsi_canvas.draw_idle()     # actually draw the new content
+        #         self.spg_canvas.flush_events()  # flush events
+        #         self.spg_canvas.axes.cla()      # Clear the canvas.
+        #         self.spg_canvas.draw_idle()     # actually draw the new content
 
         #         # rsi indictor data
         #         self.rsi_values_xdata = list(range(len(rsi)))
         #         self.rsi_values_ydata = rsi
 
         #         # plot rsi current
-        #         self.rsi_canvas.axes.plot(self.rsi_values_xdata, self.rsi_values_ydata, '-', color="#DA70D6", label="RSI" )
+        #         self.spg_canvas.axes.plot(self.rsi_values_xdata, self.rsi_values_ydata, '-', color="#DA70D6", label="RSI" )
 
         #         # plot rsi overbought/oversold setting
-        #         self.rsi_canvas.axes.axhline(y=RSI_OVERBOUGHT, color='#505050', linestyle='--', label="Overbought limit")
-        #         self.rsi_canvas.axes.axhline(y=RSI_OVERSOLD, color='#D8BFD8', linestyle='--', label="Oversold limit")
+        #         self.spg_canvas.axes.axhline(y=RSI_OVERBOUGHT, color='#505050', linestyle='--', label="Overbought limit")
+        #         self.spg_canvas.axes.axhline(y=RSI_OVERSOLD, color='#D8BFD8', linestyle='--', label="Oversold limit")
 
         #         # # Drop off the first y element, append a new one.
         #         # self.ydata = self.ydata[1:] + [random.randint(0, 10)]
 
         #         # legend for rsi canvas
-        #         l_rsi = self.rsi_canvas.axes.legend(frameon=False, loc='lower left', fancybox=False, shadow=False)
+        #         l_rsi = self.spg_canvas.axes.legend(frameon=False, loc='lower left', fancybox=False, shadow=False)
 
         #         # replace text of the legend
         #         for text in l_rsi.get_texts():
         #             text.set_color("white")
                 
         #         # background grid    
-        #         self.rsi_canvas.axes.grid(color='#2c2f33', linestyle='--')
+        #         self.spg_canvas.axes.grid(color='#2c2f33', linestyle='--')
                 
         #         """
         #             MACD canvas
