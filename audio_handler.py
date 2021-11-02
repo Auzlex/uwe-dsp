@@ -78,6 +78,8 @@ class AudioHandler(object):
         #print(numpy_array)
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
+        
+        #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
         if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
             self.frame_buffer.pop(0)
 

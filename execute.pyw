@@ -3,6 +3,7 @@
     Import Modules
 """
 # config and os modules
+import librosa
 import config
 import audio_handler as audio
 import os
@@ -179,17 +180,17 @@ class Base(QMainWindow):
 
         #self.setToolTip('This is a <b>QWidget</b> widget')
 
-        act_force_buy = QAction('BUTTON 00', self)
-        #startAct.setShortcut('Ctrl+Q')
-        act_force_buy.triggered.connect(self.force_buy)
+        # act_force_buy = QAction('BUTTON 00', self)
+        # #startAct.setShortcut('Ctrl+Q')
+        # act_force_buy.triggered.connect(self.force_buy)
 
-        act_force_sell = QAction('BUTTON 01', self)
-        #pauseAct.setShortcut('Ctrl+W')
-        act_force_sell.triggered.connect(self.force_sell)
+        # act_force_sell = QAction('BUTTON 01', self)
+        # #pauseAct.setShortcut('Ctrl+W')
+        # act_force_sell.triggered.connect(self.force_sell)
 
-        self.toolbar = self.addToolBar('Override Controls Toolbar')
-        self.toolbar.addAction(act_force_buy)
-        self.toolbar.addAction(act_force_sell)
+        # self.toolbar = self.addToolBar('Override Controls Toolbar')
+        # self.toolbar.addAction(act_force_buy)
+        # self.toolbar.addAction(act_force_sell)
 
         # get the file directory
         root_dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -228,6 +229,8 @@ class Base(QMainWindow):
         self.fft_canvas.axes.set_axisbelow(True)
         self.fft_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
 
+        #self.fft_canvas.axes.autoscale(False)
+
         for spine in self.fft_canvas.axes.spines.values():
             spine.set_edgecolor('#1d1e21')
 
@@ -251,8 +254,13 @@ class Base(QMainWindow):
         self.timer.timeout.connect(self.update_textedit) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
+        self.pre_process_timer = QTimer()
+        self.pre_process_timer.setInterval(0) # 500
+        self.pre_process_timer.timeout.connect(self.pre_process_data) # self.update_plot
+
+        # Setup a timer to trigger the redraw by calling update_plot.
         self.timer2 = QTimer()
-        self.timer2.setInterval(10) # 3000
+        self.timer2.setInterval(0) # 3000
         self.timer2.timeout.connect(self.update_plot) # self.update_plot
 
         central_widget = QWidget()
@@ -270,7 +278,6 @@ class Base(QMainWindow):
         Overall_Layout.addWidget( self.canvas, 3, 1 )
         Overall_Layout.addWidget( self.fft_canvas, 4, 1 )
         Overall_Layout.addWidget( self.spg_canvas, 5, 1 )
-        #Overall_Layout.addWidget( self.macd_canvas, 6, 1 )
 
         self.setGeometry(300, 300, 800, 900)        # set the size of the window
         self.setWindowTitle('multi-label sound event classification system'.upper())              # set window title Audio.To.SpectroGraph
@@ -283,10 +290,13 @@ class Base(QMainWindow):
         sys.stdout = MyStream()
         #sys.stderr = MyStream()
 
+
         # update text timer
         self.timer.start()
 
         self.audio_handler = None # set to none so that we can check if it is None later
+        self.source = [] # source of our frame buffer
+        self.rfft_source = []
 
         # draw canvas
         self.canvas.draw()              # draw the figure first
@@ -304,6 +314,8 @@ class Base(QMainWindow):
             if self.audio_handler is not None:
                 if self.audio_handler.is_stream_active():
                     print("Audio stream is active")
+
+
                     # begin bot updating on another thread
                     # self.thread_audio_data_fetcher = threading.Thread(target=self.frame_fetcher)
                     # self.thread_audio_data_fetcher.start()
@@ -312,11 +324,33 @@ class Base(QMainWindow):
                 # update plots
                 self.update_plot()
 
+                # begin the pre-process data timer
+                self.pre_process_timer.start()
+
                 # update plot timer
                 self.timer2.start()
             else:
                 print("Audio stream is not active")
 
+
+    def pre_process_data(self):
+        """data that is required by graphs but kept outside the update loop"""
+
+        # we have to unify the source of the audio data,
+        # because it handled in a separate thread and we need to synchronize it
+        self.source = self.audio_handler.frame_buffer
+
+        # make sure source is long enough
+        if len(self.source) > 0:
+            self.simplified_data = [] # our list of our simplified data
+
+            # remove the unnecessary data only get the lowest and highest np
+            for data in self.source:
+                self.simplified_data.append([np.nanmin(data), np.nanmax(data)])
+
+            self.wave_x = list(range(len(self.source)))
+            self.wave_y = self.simplified_data
+            
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
@@ -324,70 +358,80 @@ class Base(QMainWindow):
         if override:
             print("override was invoked force update_plot!")
 
+        if len(self.source) > 0:
 
-        # we have to unify the source of the audio data,
-        # because it handled in a separate thread and we need to synchronize it
-        source = self.audio_handler.frame_buffer
-
-        if len(source) > 0:
-
+            """
+                Flush Events
+            """
             self.canvas.flush_events()  # flush events
             self.canvas.axes.cla()      # Clear the canvas.
-            self.canvas.draw_idle()     # actually draw the new content
-           
-            self.fft_data = np.fft.fft(source)
-            print(f"{self.fft_data}")
-            #.fft_y = scipy.fftpack.fft(self.audio_handler.frame_buffer)
-            self.fft_x = np.linspace(0.0, self.audio_handler.SAMPLE_RATE / 2, len(self.fft_y))
-            #self.wave_x = range(0, 0 + self.audio_handler.CHUNK)
-            #self.wave_y = self.audio_handler.frame_buffer[0:0 + self.audio_handler.CHUNK]
 
-            #print(f"self.wave_x: {self.wave_x}")
-            #print(f"self.wave_y: {self.wave_y}")
-            #print("\n")
+            self.fft_canvas.flush_events()  # flush events
+            self.fft_canvas.axes.cla()      # Clear the canvas.
 
-            # plot
-            #self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=0.4, label="Candle close price")
-            #x = np.arange( 0, 2 * self.audio_handler.CHUNK, 2 )
-            #line, = self.canvas.axes.plot( x, np.random.random(self.audio_handler.CHUNK), '-', color="#7289da", alpha=0.4, label="Candle close price" )
-            #data_int = struct.unpack(str(2 * self.audio_handler.CHUNK) + 'B', bytes_buffer)
-            # create np array and offset by 128
-            #data_np = np.array(data_int, dtype='b')[::2] + 128
-            #print(list(range(len(self.audio_handler.frame_buffer))))
-            #print("\n")
-            #for e in self.audio_handler.frame_buffer:
-                #print(e)
-            # print(np.arange(0, self.audio_handler.CHUNK * 2, 1))
-            # print("\n")
-            # print(self.audio_handler.frame_buffer[0:1])
+            self.spg_canvas.flush_events()  # flush events
+            self.spg_canvas.axes.cla()      # Clear the canvas.
 
-            #print("\n")
-            #time = np.linspace(0, len(self.audio_handler.frame_buffer) / self.audio_handler.CHUNK * 2, num=len(self.audio_handler.frame_buffer))
-            #print(time)
-            #print(self.audio_handler.frame_buffer[0:0+self.audio_handler.CHUNK])
-            
-            #plotdata =  np.zeros((length,len(channels)))
-
-
-            
-
-            simplified_data = []
-            #simplified_data2 = []
-            for data in source:
-                simplified_data.append([np.nanmin(data), np.nanmax(data)])
-                # simplified_data2.append(np.nanmin(data))
-                # simplified_data2.append(np.nanmax(data))
-
-            #print(len(source))
-            self.wave_x = list(range(len(source)))#np.array(range(self.START, self.START + self.audio_handler.CHUNK))
-            self.wave_y = simplified_data#self.audio_handler.frame_buffer#np.array(self.audio_handler.frame_buffer[self.START:self.START + self.audio_handler.CHUNK])
+            """
+                Amplitude Audio Plot
+            """
+            # limit data range
             self.canvas.axes.set_ylim( [2.5,-2.5] )
-            self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=0.4, label="Audio Signal")
-            #print(len(self.wave_x),len(self.wave_y), len(self.wave_x)==len(self.wave_y))
-            #self.canvas.axes.fill_between(self.wave_x, self.wave_y, color="#7289da", alpha=0.4)
 
-            #self.canvas.axes.axhline(y=0, color='#ff1515', linestyle='-.', alpha=1, label="Stop loss")
+            # label axis
+            self.fft_canvas.axes.set_xlabel( "Over Time", color="#ffffff" )
+
+            # label axis
+            self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+
+            self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=1, label="Audio Signal")
             
+            """
+                FFT Audio Plot
+            """
+            # we need to numpy abs, because FFT will show negative frequencies and amplitudes
+            fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
+            fft_freq = np.abs(np.fft.fftfreq(len(fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
+
+            # define FFT plot limitations
+            self.fft_canvas.axes.set_ylim(0, 25)
+            self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
+
+            # label axis
+            self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
+
+            # label axis
+            self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+            
+            # plot the FFT
+            self.fft_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+
+            """
+                Spectrogram Audio Plot
+            """
+
+            # rfft = np.fft.rfft(self.source[len(self.source)-1])
+
+            # self.rfft_source.append(fft_data)
+
+            # if len(self.rfft_source) > 512:
+            #     self.rfft_source.pop(0)
+            #lb_fft = librosa.feature.melspectrogram(y=fft_data, sr=config.SAMPLE_RATE, S=None, n_fft=512, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+            
+            #D_highres = librosa.stft(fft_data, hop_length=256, n_fft=512) # 4096
+            #S_db_hr = librosa.amplitude_to_db(np.abs(D_highres), ref=np.max)
+            #img = librosa.display.specshow(S_db_hr, hop_length=256, x_axis='time', y_axis='log',ax=self.spg_canvas.axes)
+            
+            #S = librosa.feature.melspectrogram(y=self.wave_y, sr=config.SAMPLE_RATE)
+
+            #self.spg_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            #self.spg_canvas.axes.specgram(S, NFFT=512, Fs=config.SAMPLE_RATE, noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            self.spg_canvas.axes.specgram(fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+
+
+            self.canvas.draw_idle()     # actually draw the new content 
+            self.fft_canvas.draw_idle()     # actually draw the new content
+            self.spg_canvas.draw_idle()     # actually draw the new content
 
         # global RSI_PERIOD, RSI_OVERBOUGHT, RSI_OVERSOLD
         # global SMA_LONG, SMA_SHORT, ATR_VOLATILITY_DETECTION_THRESHOLD
