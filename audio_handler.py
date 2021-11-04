@@ -72,7 +72,7 @@ class AudioHandler(object):
         """callback function for the pyaudio stream, returns in np.float32"""
 
         numpy_array = np.frombuffer(in_data, dtype=np.float32)
-        librosa.feature.mfcc(numpy_array)
+        #librosa.feature.mfcc(numpy_array)
 
         self.frame_buffer.append(numpy_array)
         #print(numpy_array)

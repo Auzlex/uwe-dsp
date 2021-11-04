@@ -296,6 +296,10 @@ class Base(QMainWindow):
 
         self.audio_handler = None # set to none so that we can check if it is None later
         self.source = [] # source of our frame buffer
+
+        self.fft_data = [] # data for fft
+        self.fft_freq = [] # frequency for fft
+
         self.rfft_source = []
 
         # draw canvas
@@ -343,14 +347,23 @@ class Base(QMainWindow):
         # make sure source is long enough
         if len(self.source) > 0:
             self.simplified_data = [] # our list of our simplified data
+            self.negative_simplified_data = [] # our list of our simplified data
 
             # remove the unnecessary data only get the lowest and highest np
             for data in self.source:
-                self.simplified_data.append([np.nanmin(data), np.nanmax(data)])
+                self.simplified_data.append(np.nanmax(data)) # [np.nanmin(data), np.nanmax(data)]
+                self.negative_simplified_data.append(np.nanmin(data))
 
+            # set the wave amplitude data
             self.wave_x = list(range(len(self.source)))
             self.wave_y = self.simplified_data
+            self.wave_negative_y = self.negative_simplified_data
             
+
+    amplitude_plot_a = None
+    amplitude_plot_b = None
+    fft_plot = None
+    spectrogram_plot = None
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
@@ -363,86 +376,138 @@ class Base(QMainWindow):
             """
                 Flush Events
             """
-            self.canvas.flush_events()  # flush events
-            self.canvas.axes.cla()      # Clear the canvas.
-
-            self.fft_canvas.flush_events()  # flush events
-            self.fft_canvas.axes.cla()      # Clear the canvas.
-
-            self.spg_canvas.flush_events()  # flush events
-            self.spg_canvas.axes.cla()      # Clear the canvas.
+            # self.spg_canvas.flush_events()  # flush events
+            # self.spg_canvas.axes.cla()      # Clear the canvas.
 
             """
                 Amplitude Audio Plot
             """
-            # limit data range
-            self.canvas.axes.set_ylim( [2.5,-2.5] )
+            self.canvas.flush_events()  # flush events
 
-            # label axis
-            self.fft_canvas.axes.set_xlabel( "Over Time", color="#ffffff" )
+            if self.amplitude_plot_a is None and self.amplitude_plot_b is None:
+                # limit data range
+                self.canvas.axes.set_ylim( [-2.5,2.5] )
 
-            # label axis
-            self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+                # label axis
+                self.canvas.axes.set_xlabel( "Over Time", color="#ffffff" )
 
-            self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=1, label="Audio Signal")
+                # label axis
+                self.canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+                self.canvas.axes.axhline(y=0, color='#353535', linestyle='-', alpha=1, label="0 Amplitude")
+
+                self.amplitude_plot_a = self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=1, label="Audio Signal")
+                self.amplitude_plot_b = self.canvas.axes.plot(self.wave_x, self.wave_negative_y, '-', color="#7289da", alpha=1, label="Audio Signal")
+            else:
+                self.amplitude_plot_a[0].set_data(self.wave_x, self.wave_y)
+                self.amplitude_plot_b[0].set_data(self.wave_x, self.wave_negative_y)
+
+            self.canvas.draw_idle()     # actually draw the new content 
             
             """
                 FFT Audio Plot
             """
-            # we need to numpy abs, because FFT will show negative frequencies and amplitudes
-            fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
-            fft_freq = np.abs(np.fft.fftfreq(len(fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
+            self.fft_canvas.flush_events()  # flush events
+            #print(self.source[len(self.source)-1])
 
-            # define FFT plot limitations
-            self.fft_canvas.axes.set_ylim(0, 25)
-            self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
+            try:
+                # we need to numpy abs, because FFT will show negative frequencies and amplitudes
+                self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
+                self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
+            except Exception as e:
+                print(f"Error when calculating fft data {e}")
 
-            # label axis
-            self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
+            if self.fft_plot is None:
+                 # define FFT plot limitations
+                self.fft_canvas.axes.set_ylim(0, 150) # 300
+                self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
 
-            # label axis
-            self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
-            
-            # plot the FFT
-            self.fft_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                # label axis
+                self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
 
+                # label axis
+                self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+                
+                # plot the FFT
+                self.fft_plot = self.fft_canvas.axes.plot(self.fft_freq, self.fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            else:
+                #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
+                self.fft_plot[0].set_ydata(self.fft_data)
+
+            self.fft_canvas.draw_idle()     # actually draw the new content 
             """
                 Spectrogram Audio Plot
             """
+            # self.spg_canvas.flush_events()  # flush events
 
-            # rfft = np.fft.rfft(self.source[len(self.source)-1])
+            # # rfft = np.fft.rfft(self.source[len(self.source)-1])
 
-            # self.rfft_source.append(fft_data)
+            # self.rfft_source.append(self.fft_data)
 
-            # if len(self.rfft_source) > 512:
+            # if len(self.rfft_source) > len(self.source):
             #     self.rfft_source.pop(0)
-            #lb_fft = librosa.feature.melspectrogram(y=fft_data, sr=config.SAMPLE_RATE, S=None, n_fft=512, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
             
-            #D_highres = librosa.stft(fft_data, hop_length=256, n_fft=512) # 4096
-            #S_db_hr = librosa.amplitude_to_db(np.abs(D_highres), ref=np.max)
-            #img = librosa.display.specshow(S_db_hr, hop_length=256, x_axis='time', y_axis='log',ax=self.spg_canvas.axes)
+            # print(self.rfft_source)
+
+            # #lb_fft = librosa.feature.melspectrogram(y=fft_data, sr=config.SAMPLE_RATE, S=None, n_fft=512, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
             
-            #S = librosa.feature.melspectrogram(y=self.wave_y, sr=config.SAMPLE_RATE)
+            # #D_highres = librosa.stft(fft_data, hop_length=256, n_fft=512) # 4096
+            # #S_db_hr = librosa.amplitude_to_db(np.abs(D_highres), ref=np.max)
+            # #img = librosa.display.specshow(S_db_hr, hop_length=256, x_axis='time', y_axis='log',ax=self.spg_canvas.axes)
+            
+            # #S = librosa.feature.melspectrogram(y=self.wave_y, sr=config.SAMPLE_RATE)
 
-            #self.spg_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
-            #self.spg_canvas.axes.specgram(S, NFFT=512, Fs=config.SAMPLE_RATE, noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
-            self.spg_canvas.axes.specgram(fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            # #self.spg_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            # #self.spg_canvas.axes.specgram(S, NFFT=512, Fs=config.SAMPLE_RATE, noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            
+            # #self.spg_canvas.axes.specgram(self.fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
 
 
-            self.canvas.draw_idle()     # actually draw the new content 
-            self.fft_canvas.draw_idle()     # actually draw the new content
-            self.spg_canvas.draw_idle()     # actually draw the new content
 
-        # global RSI_PERIOD, RSI_OVERBOUGHT, RSI_OVERSOLD
-        # global SMA_LONG, SMA_SHORT, ATR_VOLATILITY_DETECTION_THRESHOLD
-        # global closes, highs, lows, in_position, atr, atr_extremes, volatility
-        # global sma_max, sma_half, sma_diff, rsi
-        # global macd, macdsignal, macdhist
-        # global bb_upper, bb_middle, bb_lower
-        # global stop_loss_price, stop_profit_price, last_stop_loss, last_stop_profit
-        # global stop_loss_limit, stop_profit_limit, last_stop_profit_limit, last_stop_loss_limit
-        # global last_buy_in_dict, current_price
-        # global plot_update_size
+            # if self.spectrogram_plot is None:
+                
+            #     # label axes
+            #     self.spg_canvas.axes.set_xlabel('Time', color="#ffffff")
+            #     self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
+
+            #     # def f(x):
+            #     #     return np.int(x)
+
+            #     # f2 = np.vectorize(f)
+
+            #     #f2(self.source)
+
+            #     # plot the FFT
+            #     #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfft_source, '-', color="#eb4034", alpha=1, label="Audio Signal")#
+            #     self.spg_canvas.axes.specgram(self.rfft_source, NFFT=512, Fs=config.SAMPLE_RATE ) #noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            #     #print(self.spectrogram_plot)
+            # else:
+            #     #self.spectrogram_plot[0].set_data(self.rfft_source)
+            #     #pass
+            #     self.spg_canvas.axes.cla()
+            #     # #self.spectrogram_plot[0].set_data(list(range(len(self.source))), self.simplified_data)
+            #     # # stft is short time fourier transform
+            #     # X = librosa.stft(self.source)
+
+            #     # # convert the slices to amplitude
+            #     # Xdb = librosa.amplitude_to_db(abs(X))
+
+            #     self.spg_canvas.axes.specgram(self.rfft_source, NFFT=512, Fs=config.SAMPLE_RATE ) #noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+
+            #     # self.spg_canvas.axes.plot(self.fft_data, self.fft_freq, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            #     #self.spg_canvas.axes.specgram( (self.fft_freq,self.fft_data), NFFT=512, Fs=config.SAMPLE_RATE )
+            #     # x = 0
+            #     # for item in self.spectrogram_plot:
+            #     #     print(x, item)
+            #     #     x+= 1
+            #     # #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
+            #     # self.spectrogram_plot[1].set_data((self.fft_freq,self.fft_data))
+            #     #pass
+
+            # self.spg_canvas.draw_idle()     # actually draw the new content
+
+
+
+
 
         # if len(closes) > 0:
 
