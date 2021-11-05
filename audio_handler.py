@@ -27,7 +27,7 @@ class AudioHandler(object):
 
         # initialize the frame buffer with 0s
         self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )#np.arange(0, 2 * self.CHUNK, 2)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)
-        self.raw_frame_buffer = []
+        self.raw_frame_buffer = []#[0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
 
         self.p = None # reference to pyaudio object
         self.stream = None # reference to pyaudio stream
@@ -73,12 +73,19 @@ class AudioHandler(object):
         """callback function for the pyaudio stream, returns in np.float32"""
 
         numpy_array = np.frombuffer(in_data, dtype=np.float32) # float32
-        amplitude = np.frombuffer(in_data,  dtype=np.float32)
-        #librosa.feature.mfcc(numpy_array)
+        #amplitude = np.frombuffer(in_data,  dtype=np.float32)
+        #print(librosa.feature.mfcc(numpy_array))
         #librosa.feature.mfcc(amplitude)
 
         self.frame_buffer.append(numpy_array)
-        self.raw_frame_buffer.append(amplitude)
+
+        self.raw_frame_buffer = np.concatenate([self.raw_frame_buffer, numpy_array])
+        #print(self.raw_frame_buffer, len(self.raw_frame_buffer))
+        #print("\n\n")
+        #print(librosa.feature.mfcc(self.raw_frame_buffer.copy(),sr=self.SAMPLE_RATE))
+        
+        #print(librosa.feature.mfcc(self.raw_frame_buffer,sr=self.SAMPLE_RATE))
+        #self.raw_frame_buffer.append(librosa.feature.mfcc(numpy_array,sr=self.SAMPLE_RATE))
         #print(numpy_array)
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
@@ -88,7 +95,9 @@ class AudioHandler(object):
             self.frame_buffer.pop(0)
 
         if len(self.raw_frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
-            self.raw_frame_buffer.pop(0)
+            #self.raw_frame_buffer.pop(0)
+            self.raw_frame_buffer = self.raw_frame_buffer[1:int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )]
+            
 
         return None, pyaudio.paContinue
 
@@ -104,4 +113,20 @@ class AudioHandler(object):
 
 
 
+class AudioWavReader(object):
 
+    def __init__(self, file_path) -> None:
+        
+        # load in the libsora file
+        self.y, self.sr = librosa.load(file_path, sr=None)
+
+        print(self.y)
+        print("\n\n")
+        print(self.sr)
+
+
+if __name__ == "__main__":
+    # create an audio handler
+    import os
+    root_dir = os.path.dirname(os.path.realpath(__file__))
+    awr = AudioWavReader(os.path.join(root_dir, "73733292392.wav"))

@@ -440,128 +440,137 @@ class Base(QMainWindow):
             """
                 Spectrogram Audio Plot
             """
-            # #powerSpectrum, frequenciesFound, time, imageAxis
-            # self.spg_canvas.flush_events()  # flush events
+            #powerSpectrum, frequenciesFound, time, imageAxis
+            self.spg_canvas.flush_events()  # flush events
 
-            # # rfft = np.fft.rfft(self.source[len(self.source)-1])
+            # rfft = np.fft.rfft(self.source[len(self.source)-1])
 
-            # # self.rfft_source.append(self.fft_data)
+            # self.rfft_source.append(self.fft_data)
 
-            # # if len(self.rfft_source) > len(self.source):
-            # #     self.rfft_source.pop(0)
+            # if len(self.rfft_source) > len(self.source):
+            #     self.rfft_source.pop(0)
             
-            # # print(self.rfft_source)
+            # print(self.rfft_source)
 
-            # #lb_fft = librosa.feature.melspectrogram(y=fft_data, sr=config.SAMPLE_RATE, S=None, n_fft=512, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+            #lb_fft = librosa.feature.melspectrogram(y=fft_data, sr=config.SAMPLE_RATE, S=None, n_fft=512, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
             
-            # #D_highres = librosa.stft(fft_data, hop_length=256, n_fft=512) # 4096
-            # #S_db_hr = librosa.amplitude_to_db(np.abs(D_highres), ref=np.max)
-            # #img = librosa.display.specshow(S_db_hr, hop_length=256, x_axis='time', y_axis='log',ax=self.spg_canvas.axes)
+            #D_highres = librosa.stft(fft_data, hop_length=256, n_fft=512) # 4096
+            #S_db_hr = librosa.amplitude_to_db(np.abs(D_highres), ref=np.max)
+            #img = librosa.display.specshow(S_db_hr, hop_length=256, x_axis='time', y_axis='log',ax=self.spg_canvas.axes)
             
-            # #S = librosa.feature.melspectrogram(y=self.wave_y, sr=config.SAMPLE_RATE)
+            #S = librosa.feature.melspectrogram(y=self.wave_y, sr=config.SAMPLE_RATE)
 
-            # #self.spg_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
-            # #self.spg_canvas.axes.specgram(S, NFFT=512, Fs=config.SAMPLE_RATE, noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            #self.spg_canvas.axes.plot(fft_freq, fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            #self.spg_canvas.axes.specgram(S, NFFT=512, Fs=config.SAMPLE_RATE, noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
             
-            # #self.spg_canvas.axes.specgram(self.fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+            #self.spg_canvas.axes.specgram(self.fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
 
 
-            # self.rfft_source = np.fft.rfft(self.source[len(self.source)-1])#np.abs(np.fft.rfft(self.source[len(self.source)-1]))
+            self.rfft_source = np.fft.rfft(self.source[len(self.source)-1])#np.abs(np.fft.rfft(self.source[len(self.source)-1]))
 
-            # self.rfft_source = np.log10(np.sqrt(
-            # np.real(self.rfft_source)**2+np.imag(self.rfft_source)**2) / self.audio_handler.CHUNK) * 10
-            # r = range(0,int(self.audio_handler.SAMPLE_RATE/2+1),int(self.audio_handler.SAMPLE_RATE/self.audio_handler.CHUNK))
-            # l = len(r)
+            self.rfft_source = np.log10(np.sqrt(
+            np.real(self.rfft_source)**2+np.imag(self.rfft_source)**2) / self.audio_handler.CHUNK) * 10
+            r = range(0,int(self.audio_handler.SAMPLE_RATE/2+1),int(self.audio_handler.SAMPLE_RATE/self.audio_handler.CHUNK))
+            l = len(r)
 
-            # # convert data to integers, make np array, then offset it by 127
-            # #data_int = struct.unpack(str(2 * self.audio_handler.CHUNK) + 'B', b''.join(self.audio_handler.raw_frame_buffer))
+            # convert data to integers, make np array, then offset it by 127
+            #data_int = struct.unpack(str(2 * self.audio_handler.CHUNK) + 'B', b''.join(self.audio_handler.raw_frame_buffer))
             
-            # # create np array and offset by 128
-            # #data_np = np.array(self.source, dtype=np.float32)[::2] + 128
-            # #x = list(range(len(self.audio_handler.raw_frame_buffer)))
-            # #x = np.linspace(0, self.audio_handler.CHUNK-1,  self.audio_handler.CHUNK)
-            # #print(self.audio_handler.raw_frame_buffer)
+            # create np array and offset by 128
+            #data_np = np.array(self.source, dtype=np.float32)[::2] + 128
+            #x = list(range(len(self.audio_handler.raw_frame_buffer)))
+            #x = np.linspace(0, self.audio_handler.CHUNK-1,  self.audio_handler.CHUNK)
+            #print(self.audio_handler.raw_frame_buffer)
 
-            # if self.spectrogram_plot is None:
-                
-            #     # label axes
-            #     self.spg_canvas.axes.set_xlabel('Time', color="#ffffff")
-            #     self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
+            self.rfb_y = librosa.feature.mfcc(self.audio_handler.raw_frame_buffer.copy(),sr=self.audio_handler.SAMPLE_RATE)
+            self.rfb_x = list(range(len(self.rfb_y)))#list(range(len(self.audio_handler.raw_frame_buffer)))
+            
+            self.source2 = self.audio_handler.raw_frame_buffer
+            self.rfb_x2 = list(range(len(self.source2)))
 
+            if self.spectrogram_plot is None:
 
-            #     self.spectrogram_plot = self.spg_canvas.axes.plot(self.wave_x, self.audio_handler.raw_frame_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
-
-            #     #self.x = list(range(len(self.source)))
-            #     #self.y = self.source # use the amplitude of the audio data as the y data
-            #     #amplitude = np.fromstring(self.audio_handler.frame_buffer, np.int32)
-            #     # create a line object with random data
-            #     # variable for plotting
-            #     #x = np.arange(0, 2 * self.audio_handler.CHUNK, 2) # 2 * self.audio_handler.CHUNK
-            #     #x = list(range(len(self.audio_handler.raw_frame_buffer)))
-            #     #x = np.linspace(0, SAMPLESIZE-1, SAMPLESIZE)
-            #     # self.combined = []
-            #     # for elem in self.audio_handler.raw_frame_buffer:
-            #     #     print(elem)
-            #     #     for num in elem:
-            #     #         print(num)
-            #     #         self.combined.append(elem)
-            #     #self.spectrogram_plot, = self.spg_canvas.axes.plot(x,  self.audio_handler.raw_frame_buffer, '-', lw=2) # np.random.rand(self.audio_handler.CHUNK)
-
-            #     #self.spectrogram_plot = self.spg_canvas.axes.plot(self.audio_handler.frame_buffer2, '-', color="#eb4034", alpha=1, label="Audio Signal")#
-
-            #     # def f(x):
-            #     #     return np.int(x)
-
-            #     # f2 = np.vectorize(f)
-
-            #     #f2(self.source)
+                # label axes
+                self.spg_canvas.axes.set_xlabel('Time', color="#ffffff")
+                self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
 
 
-            #     # self.line1 = self.spg_canvas.axes.plot([],[])[0]
-            #     # self.line2 = self.spg_canvas.axes.plot([],[])[0]
-
-            #     # self.line1.set_data(r, [-1000]*l)
-            #     # self.line2.set_data(r, [-1000]*l)
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x, self.rfb_y, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x2, self.source2, '-', color="#eb4034", alpha=1, label="Audio Signal")
 
 
+                #self.x = list(range(len(self.source)))
+                #self.y = self.source # use the amplitude of the audio data as the y data
+                #amplitude = np.fromstring(self.audio_handler.frame_buffer, np.int32)
+                # create a line object with random data
+                # variable for plotting
+                #x = np.arange(0, 2 * self.audio_handler.CHUNK, 2) # 2 * self.audio_handler.CHUNK
+                #x = list(range(len(self.audio_handler.raw_frame_buffer)))
+                #x = np.linspace(0, SAMPLESIZE-1, SAMPLESIZE)
+                # self.combined = []
+                # for elem in self.audio_handler.raw_frame_buffer:
+                #     print(elem)
+                #     for num in elem:
+                #         print(num)
+                #         self.combined.append(elem)
+                #self.spectrogram_plot, = self.spg_canvas.axes.plot(x,  self.audio_handler.raw_frame_buffer, '-', lw=2) # np.random.rand(self.audio_handler.CHUNK)
+
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.audio_handler.frame_buffer2, '-', color="#eb4034", alpha=1, label="Audio Signal")#
+
+                # def f(x):
+                #     return np.int(x)
+
+                # f2 = np.vectorize(f)
+
+                #f2(self.source)
+
+
+                # self.line1 = self.spg_canvas.axes.plot([],[])[0]
+                # self.line2 = self.spg_canvas.axes.plot([],[])[0]
+
+                # self.line1.set_data(r, [-1000]*l)
+                # self.line2.set_data(r, [-1000]*l)
 
 
 
-            #     # plot the FFT
-            #     #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfft_source, '-', color="#eb4034", alpha=1, label="Audio Signal")#
-            #     #self.spg_canvas.axes.specgram(self.audio_handler.raw_frame_buffer, Fs=config.SAMPLE_RATE ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
-            #     #print(self.spectrogram_plot)
-            # else:
-            #     self.spectrogram_plot[0].set_data(self.wave_x, self.audio_handler.raw_frame_buffer)
-            #     #pass
-            #     #self.spectrogram_plot.set_data(self.audio_handler.raw_frame_buffer)
-            #     #self.spectrogram_plot[0].set_data(self.audio_handler.frame_buffer2)
-            #     # #self.spectrogram_plot[0].set_data(self.rfft_source)
-            #     # #pass
-            #     # #self.spg_canvas.axes.cla()
 
-            #     # self.line1.set_data(r, self.rfft_source)
-            #     # self.line2.set_data(np.maximum(self.line1.get_data(), self.line2.get_data()))
-            #     # # #self.spectrogram_plot[0].set_data(list(range(len(self.source))), self.simplified_data)
-            #     # # # stft is short time fourier transform
-            #     # # X = librosa.stft(self.source)
 
-            #     # # # convert the slices to amplitude
-            #     # # Xdb = librosa.amplitude_to_db(abs(X))
+                # plot the FFT
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfft_source, '-', color="#eb4034", alpha=1, label="Audio Signal")#
+                self.spg_canvas.axes.specgram(self.source2, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                #print(self.spectrogram_plot)
+            else:
+                #self.spectrogram_plot[0].set_data(self.rfb_x, self.rfb_y)
+                self.spectrogram_plot[0].set_data(self.rfb_x2, self.source2)
+                #pass
+                #self.spectrogram_plot.set_data(self.audio_handler.raw_frame_buffer)
+                #self.spectrogram_plot[0].set_data(self.audio_handler.frame_buffer2)
+                # #self.spectrogram_plot[0].set_data(self.rfft_source)
+                # #pass
+                # #self.spg_canvas.axes.cla()
 
-            #     # #self.spg_canvas.axes.specgram(self.rfft_source, Fs=config.SAMPLE_RATE ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                # self.line1.set_data(r, self.rfft_source)
+                # self.line2.set_data(np.maximum(self.line1.get_data(), self.line2.get_data()))
+                # # #self.spectrogram_plot[0].set_data(list(range(len(self.source))), self.simplified_data)
+                # # # stft is short time fourier transform
+                # # X = librosa.stft(self.source)
 
-            #     # # self.spg_canvas.axes.plot(self.fft_data, self.fft_freq, '-', color="#eb4034", alpha=1, label="Audio Signal")
-            #     # #self.spg_canvas.axes.specgram( (self.fft_freq,self.fft_data), NFFT=512, Fs=config.SAMPLE_RATE )
-            #     # # x = 0
-            #     # # for item in self.spectrogram_plot:
-            #     # #     print(x, item)
-            #     # #     x+= 1
-            #     # # #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
-            #     # # self.spectrogram_plot[1].set_data((self.fft_freq,self.fft_data))
-            #     # #pass
+                # # # convert the slices to amplitude
+                # # Xdb = librosa.amplitude_to_db(abs(X))
 
-            # self.spg_canvas.draw_idle()     # actually draw the new content
+                # #self.spg_canvas.axes.specgram(self.rfft_source, Fs=config.SAMPLE_RATE ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+
+                # # self.spg_canvas.axes.plot(self.fft_data, self.fft_freq, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                # #self.spg_canvas.axes.specgram( (self.fft_freq,self.fft_data), NFFT=512, Fs=config.SAMPLE_RATE )
+                # # x = 0
+                # # for item in self.spectrogram_plot:
+                # #     print(x, item)
+                # #     x+= 1
+                # # #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
+                # # self.spectrogram_plot[1].set_data((self.fft_freq,self.fft_data))
+                # #pass
+
+            self.spg_canvas.draw_idle()     # actually draw the new content
 
 
 
