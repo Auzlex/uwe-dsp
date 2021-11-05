@@ -27,6 +27,7 @@ class AudioHandler(object):
 
         # initialize the frame buffer with 0s
         self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )#np.arange(0, 2 * self.CHUNK, 2)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)
+        self.raw_frame_buffer = []
 
         self.p = None # reference to pyaudio object
         self.stream = None # reference to pyaudio stream
@@ -71,10 +72,13 @@ class AudioHandler(object):
     def callback(self, in_data, frame_count, time_info, flag):
         """callback function for the pyaudio stream, returns in np.float32"""
 
-        numpy_array = np.frombuffer(in_data, dtype=np.float32)
+        numpy_array = np.frombuffer(in_data, dtype=np.float32) # float32
+        amplitude = np.frombuffer(in_data,  dtype=np.float32)
         #librosa.feature.mfcc(numpy_array)
+        #librosa.feature.mfcc(amplitude)
 
         self.frame_buffer.append(numpy_array)
+        self.raw_frame_buffer.append(amplitude)
         #print(numpy_array)
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
@@ -82,6 +86,9 @@ class AudioHandler(object):
         #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
         if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
             self.frame_buffer.pop(0)
+
+        if len(self.raw_frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
+            self.raw_frame_buffer.pop(0)
 
         return None, pyaudio.paContinue
 
