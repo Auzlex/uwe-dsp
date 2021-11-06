@@ -23,13 +23,14 @@ class AudioHandler(object):
         self.SAMPLE_RATE = config.SAMPLE_RATE
         self.CHUNK = config.CHUNK_SIZE * config.CHUNK_MULTIPLIER
 
+        # max buffer time in seconds, used to cache data to max n seconds
         self.max_buffer_time_in_seconds = config.MAX_BUFFER_TIME_IN_SECONDS
 
         # initialize the frame buffer with 0s
-        self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )#np.arange(0, 2 * self.CHUNK, 2)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)
-        self.raw_frame_buffer = []#[0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
-
-        self.np_buffer = np.arange(0,0, 2)#np.zeros([1], dtype=np.float32)
+        self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
+        
+        # used by the spectrograph
+        self.np_buffer = np.arange(0,0, 2)
 
         self.p = None # reference to pyaudio object
         self.stream = None # reference to pyaudio stream
@@ -74,16 +75,16 @@ class AudioHandler(object):
     def callback(self, in_data, frame_count, time_info, flag):
         """callback function for the pyaudio stream, returns in np.float32"""
 
+        # get the data from the stream in np.float32 from buffer
         numpy_array = np.frombuffer(in_data, dtype=np.float32) # float32
         
+        # append the data to the frame buffer as copy
+        self.frame_buffer.append(numpy_array.copy())
+
+        # numpy version of the frame buffer for spectrogram
         self.np_buffer = np.append( self.np_buffer, numpy_array.copy() )
     
-        if len(self.np_buffer) > (self.CHUNK) * self.max_buffer_time_in_seconds * 10:
-            # delete the first chunk if we exceed max time to track
-            self.np_buffer = np.delete(self.np_buffer, list(range(0, self.CHUNK)))
-
         # print(self.np_buffer.ndim, len(self.np_buffer), self.CHUNK * self.max_buffer_time_in_seconds, len(self.np_buffer) > self.CHUNK * self.max_buffer_time_in_seconds)
-        
 
         # data_np = np.array(numpy_array, dtype='d').flattern()
         # mfcc = librosa.feature.mfcc(self.np_buffer.copy(), sr=self.SAMPLE_RATE)
@@ -92,33 +93,17 @@ class AudioHandler(object):
         #amplitude = np.frombuffer(in_data,  dtype=np.float32)
         #print(librosa.feature.mfcc(numpy_array))
         #librosa.feature.mfcc(amplitude)
-
-        self.frame_buffer.append(numpy_array.copy())
-
-        self.raw_frame_buffer = np.concatenate([self.raw_frame_buffer, numpy_array.copy()])
-
-        #self.
-
-
-        #print(self.raw_frame_buffer, len(self.raw_frame_buffer))
-        #print("\n\n")
-        #print(librosa.feature.mfcc(self.raw_frame_buffer.copy(),sr=self.SAMPLE_RATE))
-        
-        #print(librosa.feature.mfcc(self.raw_frame_buffer,sr=self.SAMPLE_RATE))
-        #self.raw_frame_buffer.append(librosa.feature.mfcc(numpy_array,sr=self.SAMPLE_RATE))
-        #print(numpy_array)
+        #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
-        
-        #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
         if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
             self.frame_buffer.pop(0)
 
-        if len(self.raw_frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
-            #self.raw_frame_buffer.pop(0)
-            self.raw_frame_buffer = self.raw_frame_buffer[1:int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )]
-            
-        #time.sleep(0.25)
+        # if the np buffer is too large we then check if its greater than the max chunk size we want
+        if len(self.np_buffer) > (self.CHUNK) * self.max_buffer_time_in_seconds * 10:
+            # delete the first chunk if we exceed max time to track
+            self.np_buffer = np.delete(self.np_buffer, list(range(0, self.CHUNK)))
+
         return None, pyaudio.paContinue
 
     def is_stream_active(self):
