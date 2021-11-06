@@ -3,7 +3,6 @@
     import modules
 """
 import config # import our custom config file
-import simpleaudio as sa # to play audio
 import pyaudio # to receive audio
 import librosa # to extract features
 import numpy as np # to handle arrays
@@ -28,7 +27,8 @@ class AudioHandler(object):
 
         # initialize the frame buffer with 0s
         self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
-        
+        self.np_buffer = np.array([0] * self.CHUNK * self.max_buffer_time_in_seconds * 10)
+
         # used by the spectrograph
         self.np_buffer = np.arange(0,0, 2)
 
@@ -94,6 +94,9 @@ class AudioHandler(object):
         #print(librosa.feature.mfcc(numpy_array))
         #librosa.feature.mfcc(amplitude)
         #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
+
+
+        #print(len(self.frame_buffer))
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
         if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):

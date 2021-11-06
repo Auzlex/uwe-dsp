@@ -41,7 +41,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 # scipy fft
-import scipy.fftpack
+#import scipy.fftpack
 
 # import for debugging
 import logging
@@ -325,11 +325,12 @@ class Base(QMainWindow):
                     # self.thread_audio_data_fetcher.start()
 
                 # only big updating plots if we have an audio stream duh!
-                # update plots
-                self.update_plot()
 
                 # begin the pre-process data timer
                 self.pre_process_timer.start()
+
+                # update plots
+                self.update_plot()
 
                 # update plot timer
                 self.timer2.start()
@@ -343,6 +344,13 @@ class Base(QMainWindow):
         # we have to unify the source of the audio data,
         # because it handled in a separate thread and we need to synchronize it
         self.source = self.audio_handler.frame_buffer
+
+        try:
+            # we need to numpy abs, because FFT will show negative frequencies and amplitudes
+            self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
+            self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
+        except Exception as e:
+            print(f"Error when calculating fft data {e}")
 
         # make sure source is long enough
         if len(self.source) > 0:
@@ -412,26 +420,24 @@ class Base(QMainWindow):
             self.fft_canvas.flush_events()  # flush events
             #print(self.source[len(self.source)-1])
 
-            try:
-                # we need to numpy abs, because FFT will show negative frequencies and amplitudes
-                self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
-                self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
-            except Exception as e:
-                print(f"Error when calculating fft data {e}")
-
             if self.fft_plot is None:
-                 # define FFT plot limitations
-                self.fft_canvas.axes.set_ylim(0, 150) # 300
-                self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
 
-                # label axis
-                self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
+                # only plot the fft if we have the data to do so
+                # prevents matplot bugs
+                if len(self.fft_freq) > 0 and len(self.fft_data) > 0:
+                    # define FFT plot limitations
+                    self.fft_canvas.axes.set_ylim(0, 150) # 300
+                    self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
 
-                # label axis
-                self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
-                
-                # plot the FFT
-                self.fft_plot = self.fft_canvas.axes.plot(self.fft_freq, self.fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                    # label axis
+                    self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
+
+                    # label axis
+                    self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
+                    
+                    # plot the FFT
+                    self.fft_plot = self.fft_canvas.axes.plot(self.fft_freq, self.fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            
             else:
                 #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
                 self.fft_plot[0].set_ydata(self.fft_data)
@@ -445,18 +451,21 @@ class Base(QMainWindow):
 
             if self.spectrogram_plot is None:
 
+                # only allow spectrogram if we have enough data to view it
+                if not len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
+                    return
+
+                self.spectrogram_plot = []
+
                 # label axes
                 self.spg_canvas.axes.set_xlabel('Time', color="#ffffff")
                 self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
-
 
                 #root_dir = os.path.dirname(os.path.realpath(__file__))
                 #awr = audio.AudioWavReader(os.path.join(root_dir, "73733292392.wav"))
                 self.spg_canvas.axes.set_ylim(-1, 1)
                 #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
                 
-
-                self.spectrogram_plot = []
                 #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
                 spectrum, freqs, time, image = self.spg_canvas.axes.specgram(self.audio_handler.np_buffer, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
                 
