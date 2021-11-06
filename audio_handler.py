@@ -29,6 +29,8 @@ class AudioHandler(object):
         self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )#np.arange(0, 2 * self.CHUNK, 2)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)#[0] * int(self.SAMPLE_RATE / self.CHUNK * 10)
         self.raw_frame_buffer = []#[0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
 
+        self.np_buffer = np.arange(0,0, 2)#np.zeros([1], dtype=np.float32)
+
         self.p = None # reference to pyaudio object
         self.stream = None # reference to pyaudio stream
 
@@ -73,13 +75,31 @@ class AudioHandler(object):
         """callback function for the pyaudio stream, returns in np.float32"""
 
         numpy_array = np.frombuffer(in_data, dtype=np.float32) # float32
+        
+        self.np_buffer = np.append( self.np_buffer, numpy_array.copy() )
+    
+        if len(self.np_buffer) > (self.CHUNK) * self.max_buffer_time_in_seconds * 10:
+            # delete the first chunk if we exceed max time to track
+            self.np_buffer = np.delete(self.np_buffer, list(range(0, self.CHUNK)))
+
+        # print(self.np_buffer.ndim, len(self.np_buffer), self.CHUNK * self.max_buffer_time_in_seconds, len(self.np_buffer) > self.CHUNK * self.max_buffer_time_in_seconds)
+        
+
+        # data_np = np.array(numpy_array, dtype='d').flattern()
+        # mfcc = librosa.feature.mfcc(self.np_buffer.copy(), sr=self.SAMPLE_RATE)
+        # print(mfcc)
+
         #amplitude = np.frombuffer(in_data,  dtype=np.float32)
         #print(librosa.feature.mfcc(numpy_array))
         #librosa.feature.mfcc(amplitude)
 
-        self.frame_buffer.append(numpy_array)
+        self.frame_buffer.append(numpy_array.copy())
 
-        self.raw_frame_buffer = np.concatenate([self.raw_frame_buffer, numpy_array])
+        self.raw_frame_buffer = np.concatenate([self.raw_frame_buffer, numpy_array.copy()])
+
+        #self.
+
+
         #print(self.raw_frame_buffer, len(self.raw_frame_buffer))
         #print("\n\n")
         #print(librosa.feature.mfcc(self.raw_frame_buffer.copy(),sr=self.SAMPLE_RATE))
@@ -98,7 +118,7 @@ class AudioHandler(object):
             #self.raw_frame_buffer.pop(0)
             self.raw_frame_buffer = self.raw_frame_buffer[1:int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )]
             
-
+        #time.sleep(0.25)
         return None, pyaudio.paContinue
 
     def is_stream_active(self):
@@ -120,7 +140,7 @@ class AudioWavReader(object):
         # load in the libsora file
         self.y, self.sr = librosa.load(file_path, sr=None)
 
-        print(self.y)
+        print(self.y, len(self.y))
         print("\n\n")
         print(self.sr)
 

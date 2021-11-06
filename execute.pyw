@@ -466,12 +466,12 @@ class Base(QMainWindow):
             #self.spg_canvas.axes.specgram(self.fft_freq, NFFT=512, Fs=config.SAMPLE_RATE )#noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
 
 
-            self.rfft_source = np.fft.rfft(self.source[len(self.source)-1])#np.abs(np.fft.rfft(self.source[len(self.source)-1]))
+            # self.rfft_source = np.fft.rfft(self.source[len(self.source)-1])#np.abs(np.fft.rfft(self.source[len(self.source)-1]))
 
-            self.rfft_source = np.log10(np.sqrt(
-            np.real(self.rfft_source)**2+np.imag(self.rfft_source)**2) / self.audio_handler.CHUNK) * 10
-            r = range(0,int(self.audio_handler.SAMPLE_RATE/2+1),int(self.audio_handler.SAMPLE_RATE/self.audio_handler.CHUNK))
-            l = len(r)
+            # self.rfft_source = np.log10(np.sqrt(
+            # np.real(self.rfft_source)**2+np.imag(self.rfft_source)**2) / self.audio_handler.CHUNK) * 10
+            # r = range(0,int(self.audio_handler.SAMPLE_RATE/2+1),int(self.audio_handler.SAMPLE_RATE/self.audio_handler.CHUNK))
+            # l = len(r)
 
             # convert data to integers, make np array, then offset it by 127
             #data_int = struct.unpack(str(2 * self.audio_handler.CHUNK) + 'B', b''.join(self.audio_handler.raw_frame_buffer))
@@ -482,12 +482,14 @@ class Base(QMainWindow):
             #x = np.linspace(0, self.audio_handler.CHUNK-1,  self.audio_handler.CHUNK)
             #print(self.audio_handler.raw_frame_buffer)
 
-            self.rfb_y = librosa.feature.mfcc(self.audio_handler.raw_frame_buffer.copy(),sr=self.audio_handler.SAMPLE_RATE)
-            self.rfb_x = list(range(len(self.rfb_y)))#list(range(len(self.audio_handler.raw_frame_buffer)))
+            #self.rfb_y = librosa.feature.mfcc(self.audio_handler.raw_frame_buffer.copy(),sr=self.audio_handler.SAMPLE_RATE)
+            #self.rfb_x = list(range(len(self.rfb_y)))#list(range(len(self.audio_handler.raw_frame_buffer)))
             
-            self.source2 = self.audio_handler.raw_frame_buffer
-            self.rfb_x2 = list(range(len(self.source2)))
+            #self.source2 = self.audio_handler.raw_frame_buffer
+            #self.rfb_x2 = list(range(len(self.source2)))
 
+            
+            #mfcc = librosa.feature.mfcc(self.audio_handler.np_buffer.copy(), sr=self.audio_handler.SAMPLE_RATE)
             if self.spectrogram_plot is None:
 
                 # label axes
@@ -495,9 +497,21 @@ class Base(QMainWindow):
                 self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
 
 
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x, self.rfb_y, '-', color="#eb4034", alpha=1, label="Audio Signal")
-                self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x2, self.source2, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                #root_dir = os.path.dirname(os.path.realpath(__file__))
+                #awr = audio.AudioWavReader(os.path.join(root_dir, "73733292392.wav"))
+                self.spg_canvas.axes.set_ylim(-1, 1)
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                
 
+                self.spectrogram_plot = []
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                spectrum, freqs, time, image = self.spg_canvas.axes.specgram(self.audio_handler.np_buffer, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x, self.rfb_y, '-', color="#eb4034", alpha=1, label="Audio Signal")
+                #self.spectrogram_plot = self.spg_canvas.axes.plot(awr.y, '-', color="#eb4034", alpha=1, label="Audio Signal")
+
+                #self.spg_canvas.axes.specgram(awr.y, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                
 
                 #self.x = list(range(len(self.source)))
                 #self.y = self.source # use the amplitude of the audio data as the y data
@@ -537,12 +551,20 @@ class Base(QMainWindow):
 
                 # plot the FFT
                 #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfft_source, '-', color="#eb4034", alpha=1, label="Audio Signal")#
-                self.spg_canvas.axes.specgram(self.source2, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                ##self.spg_canvas.axes.specgram(self.source2, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
                 #print(self.spectrogram_plot)
             else:
+                self.spg_canvas.axes.cla()
+                spectrum, freqs, time, image = self.spg_canvas.axes.specgram(self.audio_handler.np_buffer, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                
+                #self.spg_canvas.axes.set_ylim(-1, 1)
+                #self.spg_canvas.axes.set_xlim(0, len(self.audio_handler.np_buffer))
+                ##########self.spectrogram_plot[0].set_data(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer)
+                #self.spectrogram_plot[0].set_data(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer)
                 #self.spectrogram_plot[0].set_data(self.rfb_x, self.rfb_y)
-                self.spectrogram_plot[0].set_data(self.rfb_x2, self.source2)
-                #pass
+                ##self.spectrogram_plot[0].set_data(self.rfb_x2, self.source2)
+                
+                pass
                 #self.spectrogram_plot.set_data(self.audio_handler.raw_frame_buffer)
                 #self.spectrogram_plot[0].set_data(self.audio_handler.frame_buffer2)
                 # #self.spectrogram_plot[0].set_data(self.rfft_source)
