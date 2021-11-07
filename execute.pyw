@@ -9,24 +9,12 @@ import audio_handler as audio
 import os
 import sys
 import ctypes
-import threading
-
-import struct
 
 # math, time modules
 import math
 import time
 import datetime
 import numpy as np
-
-# import matplotlib.pyplot as plt
-import matplotlib
-import matplotlib.lines as mlines
-import matplotlib.pyplot as plt
-
-# configure the matplotlib to change the tick colours to white
-plt.rcParams['xtick.color'] = "w"
-plt.rcParams['ytick.color'] = "w"
 
 # import pyqt5 modules
 from PyQt5 import QtCore
@@ -37,14 +25,6 @@ from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 
 # use pyqtgraph instead of matplotlib
 import pyqtgraph as pg
-
-# configure matplotlib to use a QT backend
-matplotlib.use('Qt5Agg')
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
-# scipy fft
-#import scipy.fftpack
 
 # import for debugging
 import logging
@@ -64,35 +44,29 @@ global PYTHON_OUTPUT
 PYTHON_OUTPUT = []
 
 class MyStream(object):
+    """my stream class used to """
+
+    def __init__(self, boolean = False) -> None:
+        super().__init__()
+        self.displaying_error = boolean # determines if we display in red
 
     def write(self, text):
 
         global PYTHON_OUTPUT
 
+        # if the text is not empty
         if len(text) > 0:
 
+            # get the current lines
             lines = len(PYTHON_OUTPUT)
 
+            # append str text
             PYTHON_OUTPUT.append(str(text))
-
-            # Add text to a QTextEdit...
-            #self.qt_text_edit.insertPlainText( str(text) )
-            #self.qt_text_edit.moveCursor(QTextCursor.End)
 
             # if the lines exceed buffer limit then delete the first element always
             if lines >= 1500:
                 # forget the first 500 values
                 PYTHON_OUTPUT = PYTHON_OUTPUT[500:]
-
-class MplCanvas(FigureCanvas):
-
-    def __init__(self, parent=None, titleinfo="N/A", width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi,facecolor="#1f2124")
-        fig.suptitle( titleinfo, color="#ffffff" ) # set figure suptitle
-        self.axes = fig.add_subplot(111)
-
-
-        super(MplCanvas, self).__init__(fig)
 
 class Base(QMainWindow):
 
@@ -202,6 +176,9 @@ class Base(QMainWindow):
         # self.toolbar.addAction(act_force_buy)
         # self.toolbar.addAction(act_force_sell)
 
+        """
+            Initial Variables 
+        """
 
         self.audio_handler = None # set to none so that we can check if it is None later
         self.source = [] # source of our frame buffer
@@ -209,14 +186,16 @@ class Base(QMainWindow):
         self.fft_data = [] # data for fft
         self.fft_freq = [] # frequency for fft
 
-        self.rfft_source = []
-
         # get the file directory
         root_dir_path = os.path.dirname(os.path.realpath(__file__))
 
+        """
+            label indicator
+        """
+
         # label indicator
         self.indicator_text_label = QLabel()
-        #self.indicator_text_label.setText( "".upper() )
+
         # update indicator text
         self.indicator_text_label.setText( self.indicator_text() )
 
@@ -226,31 +205,28 @@ class Base(QMainWindow):
         self.textEdit.verticalScrollBar().setValue(1)
 
         """
-            Pyqtplot test
+            Pyqtplot render target
         """
         pg.setConfigOptions(antialias=True) # set antialiasing on for prettier plots
         self.pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window".upper())
 
+        # has a list of all our plots that we will dynamically update
         self.traces = dict()
 
         """
-            Amplitude Canvas
+            Canvas References for Plotting
         """
     
-        self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(
-            title="audio amplitude".upper(), 
-            row=0, 
-            col=0, 
-            lockAspect=True,
-            #axisItems={'bottom': self.wf_xaxis, 'left': self.wf_yaxis}
-        )
-    
+        self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
         self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
         self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
         
+        # image for spectrogram
         self.img = pg.ImageItem()
+        # add the img to the spg canvas
         self.spg_canvas.addItem(self.img)
 
+        # set the image array to zeros
         self.img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
 
         # bipolar colormap
@@ -266,101 +242,22 @@ class Base(QMainWindow):
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
         #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
+        
+        # set the y-axis to the correct frequency scale
         yscale = 1.0/(self.img_array.shape[1]/freq[-1])
+
+        # set img scale
         self.img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
 
+        # set the label of the canvas to show frequency on the Y axis
         self.spg_canvas.setLabel('left', 'Frequency', units='Hz')
 
         # prepare window for later use
         self.win = np.hanning(config.CHUNK_SIZE)
 
-
-
-
-        # awr = audio.AudioWavReader(os.path.join(root_dir_path, "73733292392.wav"))
-        # np_array = librosa.feature.melspectrogram(y=awr.y, sr=awr.sr, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
-
-        # win = pg.GraphicsLayoutWidget()
-        
-        # # Item for displaying image data
-        # img = pg.ImageItem()
-        # self.spg_canvas.addItem(img)
-        # # Add a histogram with which to control the gradient of the image
-        # hist = pg.HistogramLUTItem()
-        # # Link the histogram to the image
-        # hist.setImageItem(img)
-        # # If you don't add the histogram to the window, it stays invisible, but I find it useful.
-        # win.addItem(hist)
-        # # Show the window
-        # win.show()
-        # # Fit the min and max levels of the histogram to the data available
-        # hist.setLevels(np.min(np_array), np.max(np_array))
-        # # This gradient is roughly comparable to the gradient used by Matplotlib
-        # # You can adjust it and then save it using hist.gradient.saveState()
-        # hist.gradient.restoreState(
-        #         {'mode': 'rgb',
-        #         'ticks': [(0.5, (0, 182, 188, 255)),
-        #                 (1.0, (246, 111, 0, 255)),
-        #                 (0.0, (75, 0, 113, 255))]})
-        # # Sxx contains the amplitude for each pixel
-        # img.setImage(np_array)
-        # # Scale the X and Y Axis to time and frequency (standard is pixels)
-        # # img.scale(t[-1]/np.size(np_array, axis=1),
-        # #         f[-1]/np.size(np_array, axis=0))
-                
-        # # Limit panning/zooming to the spectrogram
-        # self.spg_canvas.setLimits(xMin=0, xMax=awr.y[-1], yMin=0, yMax=int(awr.sr/2))
-        # # Add labels to the axis
-        # self.spg_canvas.setLabel('bottom', "Time", units='s')
-        # # If you include the units, Pyqtgraph automatically scales the axis and adjusts the SI prefix (in this case kHz)
-        # self.spg_canvas.setLabel('left', "Frequency", units='Hz')
-        
-
-
-
-        # """
-        #     Amplitiude canvas information
-        # """
-        # # setup canvas for candle information
-        # self.canvas = MplCanvas(self, titleinfo="audio amplitude".upper(), width=5, height=4, dpi=70)
-        
-        # # sets the axis facecolour and label colour
-        # self.canvas.axes.set_facecolor('#23272a')
-        # self.canvas.axes.set_axisbelow(True)
-        # self.canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
-
-        # for spine in self.canvas.axes.spines.values():
-        #     spine.set_edgecolor('#1d1e21')
-
-        # """
-        #     Fourier Wave Transform canvas
-        # """
-        # # setup canvas for volatility detection with 
-        # self.fft_canvas = MplCanvas(self, titleinfo="Fourier Wave Transform".upper(), width=5, height=4, dpi=70)
-        
-        # # sets the axis facecolour and label colour
-        # self.fft_canvas.axes.set_facecolor('#23272a')
-        # self.fft_canvas.axes.set_axisbelow(True)
-        # self.fft_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
-
-        # #self.fft_canvas.axes.autoscale(False)
-
-        # for spine in self.fft_canvas.axes.spines.values():
-        #     spine.set_edgecolor('#1d1e21')
-
-        # """
-        #     Spectrograph Canvas
-        # """
-        # # setup canvas for volatility detection with 
-        # self.spg_canvas = MplCanvas(self, titleinfo="spectrogram".upper(), width=5, height=4, dpi=70)
-        
-        # # sets the axis facecolour and label colour
-        # self.spg_canvas.axes.set_facecolor('#23272a')
-        # self.spg_canvas.axes.set_axisbelow(True)
-        # self.spg_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
-
-        # for spine in self.spg_canvas.axes.spines.values():
-        #     spine.set_edgecolor('#1d1e21')
+        """
+            Setup, GUI layout
+        """
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
@@ -403,17 +300,12 @@ class Base(QMainWindow):
 
         # hook events for python program out so that we can view debug information of the last 250 characters
         sys.stdout = MyStream()
-        #sys.stderr = MyStream()
+        sys.stderr = MyStream(True)
 
 
         # update text timer
         self.timer.start()
 
-        # # draw canvas
-        # self.canvas.draw()              # draw the figure first
-        # self.fft_canvas.draw()   # draw the figure first
-        # self.spg_canvas.draw()          # draw the figure first
-        
         # attempt to initialize the audio handler object and start the audio stream
         try:
             self.audio_handler = audio.AudioHandler()
@@ -443,7 +335,6 @@ class Base(QMainWindow):
                 self.timer2.start()
             else:
                 print("Audio stream is not active")
-
 
     def set_plotdata(self, name, data_x, data_y):
         if name in self.traces:
@@ -540,7 +431,9 @@ class Base(QMainWindow):
             self.set_plotdata("amplitude2", self.wave_x, self.wave_negative_y )
             self.set_plotdata("fft", self.fft_freq, self.fft_data )
 
-            if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
+            # update spectrogram if the np buffer is greater than the chunk size
+            # because if its too small its not enough for the spectrogram to render
+            if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK and len(self.source) > 0:
                 #np_array = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
                 
                 # normalized, windowed frequencies in data chunk

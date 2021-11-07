@@ -133,8 +133,8 @@ class AudioWavReader(object):
         print(self.sr)
 
 
-if __name__ == "__main__":
-    # create an audio handler
-    import os
-    root_dir = os.path.dirname(os.path.realpath(__file__))
-    awr = AudioWavReader(os.path.join(root_dir, "73733292392.wav"))
+# if __name__ == "__main__":
+#     # create an audio handler
+#     import os
+#     root_dir = os.path.dirname(os.path.realpath(__file__))
+#     awr = AudioWavReader(os.path.join(root_dir, "73733292392.wav"))
