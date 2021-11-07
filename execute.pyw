@@ -35,6 +35,9 @@ from PyQt5.QtCore import QTimer#QSize, QTimer,
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 
+# use pyqtgraph instead of matplotlib
+import pyqtgraph as pg
+
 # configure matplotlib to use a QT backend
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -174,7 +177,14 @@ class Base(QMainWindow):
         # if TRADE_WITH_BLANKS:
         #     profit_summary += " | <font color=\'orange\'>DEBUG</font>"
 
-        return (f"sample text update").upper()
+        s = ""
+
+        if self.audio_handler is None:
+            s = "<font color=\'red\'>NO AUDIO HANDLER</font>"
+        else:
+            s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.SAMPLE_RATE}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.CHANNELS}</font> | chunk: <font color=\'lime\'>{self.audio_handler.CHUNK}</font>").upper()
+
+        return s
 
     def setupUI(self):
 
@@ -192,12 +202,23 @@ class Base(QMainWindow):
         # self.toolbar.addAction(act_force_buy)
         # self.toolbar.addAction(act_force_sell)
 
+
+        self.audio_handler = None # set to none so that we can check if it is None later
+        self.source = [] # source of our frame buffer
+
+        self.fft_data = [] # data for fft
+        self.fft_freq = [] # frequency for fft
+
+        self.rfft_source = []
+
         # get the file directory
         root_dir_path = os.path.dirname(os.path.realpath(__file__))
 
         # label indicator
         self.indicator_text_label = QLabel()
-        self.indicator_text_label.setText( "sample text".upper() )
+        #self.indicator_text_label.setText( "".upper() )
+        # update indicator text
+        self.indicator_text_label.setText( self.indicator_text() )
 
         # console output
         self.textEdit = QTextEdit()
@@ -205,48 +226,141 @@ class Base(QMainWindow):
         self.textEdit.verticalScrollBar().setValue(1)
 
         """
-            Amplitiude canvas information
+            Pyqtplot test
         """
-        # setup canvas for candle information
-        self.canvas = MplCanvas(self, titleinfo="audio amplitude".upper(), width=5, height=4, dpi=70)
+        pg.setConfigOptions(antialias=True) # set antialiasing on for prettier plots
+        self.pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window".upper())
+
+        self.traces = dict()
+
+        """
+            Amplitude Canvas
+        """
+    
+        self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(
+            title="audio amplitude".upper(), 
+            row=0, 
+            col=0, 
+            lockAspect=True,
+            #axisItems={'bottom': self.wf_xaxis, 'left': self.wf_yaxis}
+        )
+    
+        self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
+        self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
         
-        # sets the axis facecolour and label colour
-        self.canvas.axes.set_facecolor('#23272a')
-        self.canvas.axes.set_axisbelow(True)
-        self.canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+        self.img = pg.ImageItem()
+        self.spg_canvas.addItem(self.img)
 
-        for spine in self.canvas.axes.spines.values():
-            spine.set_edgecolor('#1d1e21')
+        self.img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
 
-        """
-            Fourier Wave Transform canvas
-        """
-        # setup canvas for volatility detection with 
-        self.fft_canvas = MplCanvas(self, titleinfo="Fourier Wave Transform".upper(), width=5, height=4, dpi=70)
+        # bipolar colormap
+        pos = np.array([0., 1., 0.5, 0.25, 0.75])
+        color = np.array([[0,255,255,255], [255,255,0,255], [0,0,0,255], (0, 0, 255, 255), (255, 0, 0, 255)], dtype=np.ubyte)
+        cmap = pg.ColorMap(pos, color)
+        lut = cmap.getLookupTable(0.0, 1.0, 256)
+
+        # set colormap
+        self.img.setLookupTable(lut)
+        self.img.setLevels([-50,40])
+
+        # setup the correct scaling for y-axis
+        freq = np.arange(0,int(config.SAMPLE_RATE/2))
+        #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
+        yscale = 1.0/(self.img_array.shape[1]/freq[-1])
+        self.img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+
+        self.spg_canvas.setLabel('left', 'Frequency', units='Hz')
+
+        # prepare window for later use
+        self.win = np.hanning(config.CHUNK_SIZE)
+
+
+
+
+        # awr = audio.AudioWavReader(os.path.join(root_dir_path, "73733292392.wav"))
+        # np_array = librosa.feature.melspectrogram(y=awr.y, sr=awr.sr, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+
+        # win = pg.GraphicsLayoutWidget()
         
-        # sets the axis facecolour and label colour
-        self.fft_canvas.axes.set_facecolor('#23272a')
-        self.fft_canvas.axes.set_axisbelow(True)
-        self.fft_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
-
-        #self.fft_canvas.axes.autoscale(False)
-
-        for spine in self.fft_canvas.axes.spines.values():
-            spine.set_edgecolor('#1d1e21')
-
-        """
-            Spectrograph Canvas
-        """
-        # setup canvas for volatility detection with 
-        self.spg_canvas = MplCanvas(self, titleinfo="spectrogram".upper(), width=5, height=4, dpi=70)
+        # # Item for displaying image data
+        # img = pg.ImageItem()
+        # self.spg_canvas.addItem(img)
+        # # Add a histogram with which to control the gradient of the image
+        # hist = pg.HistogramLUTItem()
+        # # Link the histogram to the image
+        # hist.setImageItem(img)
+        # # If you don't add the histogram to the window, it stays invisible, but I find it useful.
+        # win.addItem(hist)
+        # # Show the window
+        # win.show()
+        # # Fit the min and max levels of the histogram to the data available
+        # hist.setLevels(np.min(np_array), np.max(np_array))
+        # # This gradient is roughly comparable to the gradient used by Matplotlib
+        # # You can adjust it and then save it using hist.gradient.saveState()
+        # hist.gradient.restoreState(
+        #         {'mode': 'rgb',
+        #         'ticks': [(0.5, (0, 182, 188, 255)),
+        #                 (1.0, (246, 111, 0, 255)),
+        #                 (0.0, (75, 0, 113, 255))]})
+        # # Sxx contains the amplitude for each pixel
+        # img.setImage(np_array)
+        # # Scale the X and Y Axis to time and frequency (standard is pixels)
+        # # img.scale(t[-1]/np.size(np_array, axis=1),
+        # #         f[-1]/np.size(np_array, axis=0))
+                
+        # # Limit panning/zooming to the spectrogram
+        # self.spg_canvas.setLimits(xMin=0, xMax=awr.y[-1], yMin=0, yMax=int(awr.sr/2))
+        # # Add labels to the axis
+        # self.spg_canvas.setLabel('bottom', "Time", units='s')
+        # # If you include the units, Pyqtgraph automatically scales the axis and adjusts the SI prefix (in this case kHz)
+        # self.spg_canvas.setLabel('left', "Frequency", units='Hz')
         
-        # sets the axis facecolour and label colour
-        self.spg_canvas.axes.set_facecolor('#23272a')
-        self.spg_canvas.axes.set_axisbelow(True)
-        self.spg_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
 
-        for spine in self.spg_canvas.axes.spines.values():
-            spine.set_edgecolor('#1d1e21')
+
+
+        # """
+        #     Amplitiude canvas information
+        # """
+        # # setup canvas for candle information
+        # self.canvas = MplCanvas(self, titleinfo="audio amplitude".upper(), width=5, height=4, dpi=70)
+        
+        # # sets the axis facecolour and label colour
+        # self.canvas.axes.set_facecolor('#23272a')
+        # self.canvas.axes.set_axisbelow(True)
+        # self.canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+
+        # for spine in self.canvas.axes.spines.values():
+        #     spine.set_edgecolor('#1d1e21')
+
+        # """
+        #     Fourier Wave Transform canvas
+        # """
+        # # setup canvas for volatility detection with 
+        # self.fft_canvas = MplCanvas(self, titleinfo="Fourier Wave Transform".upper(), width=5, height=4, dpi=70)
+        
+        # # sets the axis facecolour and label colour
+        # self.fft_canvas.axes.set_facecolor('#23272a')
+        # self.fft_canvas.axes.set_axisbelow(True)
+        # self.fft_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+
+        # #self.fft_canvas.axes.autoscale(False)
+
+        # for spine in self.fft_canvas.axes.spines.values():
+        #     spine.set_edgecolor('#1d1e21')
+
+        # """
+        #     Spectrograph Canvas
+        # """
+        # # setup canvas for volatility detection with 
+        # self.spg_canvas = MplCanvas(self, titleinfo="spectrogram".upper(), width=5, height=4, dpi=70)
+        
+        # # sets the axis facecolour and label colour
+        # self.spg_canvas.axes.set_facecolor('#23272a')
+        # self.spg_canvas.axes.set_axisbelow(True)
+        # self.spg_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+
+        # for spine in self.spg_canvas.axes.spines.values():
+        #     spine.set_edgecolor('#1d1e21')
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
@@ -274,10 +388,11 @@ class Base(QMainWindow):
         #Overall_Layout.setColumnStretch(1, 2)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
+        Overall_Layout.addWidget( self.pyqtplot_rendertarget, 3, 1 )
 
-        Overall_Layout.addWidget( self.canvas, 3, 1 )
-        Overall_Layout.addWidget( self.fft_canvas, 4, 1 )
-        Overall_Layout.addWidget( self.spg_canvas, 5, 1 )
+        # Overall_Layout.addWidget( self.canvas, 3, 1 )
+        # Overall_Layout.addWidget( self.fft_canvas, 4, 1 )
+        # Overall_Layout.addWidget( self.spg_canvas, 4, 1 )
 
         self.setGeometry(300, 300, 800, 900)        # set the size of the window
         self.setWindowTitle('multi-label sound event classification system'.upper())              # set window title Audio.To.SpectroGraph
@@ -287,25 +402,17 @@ class Base(QMainWindow):
         self.show()
 
         # hook events for python program out so that we can view debug information of the last 250 characters
-        #sys.stdout = MyStream()
+        sys.stdout = MyStream()
         #sys.stderr = MyStream()
 
 
         # update text timer
         self.timer.start()
 
-        self.audio_handler = None # set to none so that we can check if it is None later
-        self.source = [] # source of our frame buffer
-
-        self.fft_data = [] # data for fft
-        self.fft_freq = [] # frequency for fft
-
-        self.rfft_source = []
-
-        # draw canvas
-        self.canvas.draw()              # draw the figure first
-        self.fft_canvas.draw()   # draw the figure first
-        self.spg_canvas.draw()          # draw the figure first
+        # # draw canvas
+        # self.canvas.draw()              # draw the figure first
+        # self.fft_canvas.draw()   # draw the figure first
+        # self.spg_canvas.draw()          # draw the figure first
         
         # attempt to initialize the audio handler object and start the audio stream
         try:
@@ -338,6 +445,51 @@ class Base(QMainWindow):
                 print("Audio stream is not active")
 
 
+    def set_plotdata(self, name, data_x, data_y):
+        if name in self.traces:
+            #if np.array_equal(data_x,data_y):
+            self.traces[name].setData(data_x, data_y)
+        else:
+            if name == 'amplitude':
+                self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
+                self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
+                self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
+
+                self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
+                self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
+                self.amplitude_canvas.setAutoVisible(y=1.0)  
+                self.amplitude_canvas.setAspectLocked(lock=False)  
+
+
+            elif name == 'amplitude2':
+                self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
+                self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
+                self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
+            
+                self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
+                self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
+                self.amplitude_canvas.setAutoVisible(y=1.0)  
+                self.amplitude_canvas.setAspectLocked(lock=False)  
+
+            elif name == 'fft':
+                self.traces[name] = self.fft_canvas.plot(pen=pg.mkPen({'color': "#ff2a00"}), width=3)
+                self.fft_canvas.setYRange(0, 350, padding=0)
+                self.fft_canvas.setXRange(0, int(self.audio_handler.SAMPLE_RATE/2), padding=0.005)
+                
+                self.fft_canvas.setMouseEnabled(x=False,y=False)  
+                self.fft_canvas.enableAutoRange(axis='y', enable=True)
+                self.fft_canvas.setAutoVisible(y=1.0)  
+                self.fft_canvas.setAspectLocked(lock=False)  
+            
+            elif name == "spectrogram":
+                pass
+            # if name == 'spectrum':
+            #     self.traces[name] = self.spectrum.plot(pen='m', width=3)
+            #     self.spectrum.setLogMode(x=True, y=True)
+            #     self.spectrum.setYRange(-4, 0, padding=0)
+            #     self.spectrum.setXRange(
+            #         np.log10(20), np.log10(self.RATE / 2), padding=0.005)
+
     def pre_process_data(self):
         """data that is required by graphs but kept outside the update loop"""
 
@@ -350,7 +502,8 @@ class Base(QMainWindow):
             self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
             self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
         except Exception as e:
-            print(f"Error when calculating fft data {e}")
+            pass
+            #print(f"Error when calculating fft data {e}")
 
         # make sure source is long enough
         if len(self.source) > 0:
@@ -367,167 +520,42 @@ class Base(QMainWindow):
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
             
-
-    amplitude_plot_a = None
-    amplitude_plot_b = None
-    fft_plot = None
-    spectrogram_plot = None
-
-    line1 = None
-    line2 = None
-
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
         
         if override:
             print("override was invoked force update_plot!")
 
+        # TODO: migrate matplot to pyqtplot
+        # Thanks! https://github.com/markjay4k/Audio-Spectrum-Analyzer-in-Python/blob/master/audio_spectrumQT.py
+        # Thanks! (Spectrogram Help) https://stackoverflow.com/questions/40374738/my-pyqt-plots-y-axes-are-upside-down-even-the-text
+
+        # update indicator text
+        self.indicator_text_label.setText( self.indicator_text() )
+
         if len(self.source) > 0:
 
-            """
-                Flush Events
-            """
-            # self.spg_canvas.flush_events()  # flush events
-            # self.spg_canvas.axes.cla()      # Clear the canvas.
+            # update plots
+            self.set_plotdata("amplitude", self.wave_x, self.wave_y )
+            self.set_plotdata("amplitude2", self.wave_x, self.wave_negative_y )
+            self.set_plotdata("fft", self.fft_freq, self.fft_data )
 
-            """
-                Amplitude Audio Plot
-            """
-            self.canvas.flush_events()  # flush events
-
-            if self.amplitude_plot_a is None and self.amplitude_plot_b is None:
-                # limit data range
-                self.canvas.axes.set_ylim( [-2.5,2.5] )
-
-                # label axis
-                self.canvas.axes.set_xlabel( "Over Time", color="#ffffff" )
-
-                # label axis
-                self.canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
-                self.canvas.axes.axhline(y=0, color='#353535', linestyle='-', alpha=1, label="0 Amplitude")
-
-                self.amplitude_plot_a = self.canvas.axes.plot(self.wave_x, self.wave_y, '-', color="#7289da", alpha=1, label="Audio Signal")
-                self.amplitude_plot_b = self.canvas.axes.plot(self.wave_x, self.wave_negative_y, '-', color="#7289da", alpha=1, label="Audio Signal")
-            else:
-                self.amplitude_plot_a[0].set_data(self.wave_x, self.wave_y)
-                self.amplitude_plot_b[0].set_data(self.wave_x, self.wave_negative_y)
-
-            self.canvas.draw_idle()     # actually draw the new content 
-            
-            """
-                FFT Audio Plot
-            """
-            self.fft_canvas.flush_events()  # flush events
-            #print(self.source[len(self.source)-1])
-
-            if self.fft_plot is None:
-
-                # only plot the fft if we have the data to do so
-                # prevents matplot bugs
-                if len(self.fft_freq) > 0 and len(self.fft_data) > 0:
-                    # define FFT plot limitations
-                    self.fft_canvas.axes.set_ylim(0, 150) # 300
-                    self.fft_canvas.axes.set_xlim(0, int(config.SAMPLE_RATE/2))
-
-                    # label axis
-                    self.fft_canvas.axes.set_xlabel( "Frequency", color="#ffffff" )
-
-                    # label axis
-                    self.fft_canvas.axes.set_ylabel( "Amplitude", color="#ffffff" )
-                    
-                    # plot the FFT
-                    self.fft_plot = self.fft_canvas.axes.plot(self.fft_freq, self.fft_data, '-', color="#eb4034", alpha=1, label="Audio Signal")
-            
-            else:
-                #self.fft_plot[0].set_data(self.fft_freq, self.fft_data)
-                self.fft_plot[0].set_ydata(self.fft_data)
-
-            self.fft_canvas.draw_idle()     # actually draw the new content 
-            """
-                Spectrogram Audio Plot
-            """
-            #powerSpectrum, frequenciesFound, time, imageAxis
-            self.spg_canvas.flush_events()  # flush events
-
-            if self.spectrogram_plot is None:
-
-                # only allow spectrogram if we have enough data to view it
-                if not len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
-                    return
-
-                self.spectrogram_plot = []
-
-                # label axes
-                self.spg_canvas.axes.set_xlabel('Time', color="#ffffff")
-                self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
-
-                #root_dir = os.path.dirname(os.path.realpath(__file__))
-                #awr = audio.AudioWavReader(os.path.join(root_dir, "73733292392.wav"))
-                self.spg_canvas.axes.set_ylim(-1, 1)
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
+            if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
+                #np_array = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
                 
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer, '-', color="#eb4034", alpha=1, label="Audio Signal")
-                spectrum, freqs, time, image = self.spg_canvas.axes.specgram(self.audio_handler.np_buffer, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                # normalized, windowed frequencies in data chunk
+                spec = np.fft.rfft(self.source[len(self.source)-1])#self.audio_handler.np_buffer#np.fft.rfft(config.CHUNK_SIZE*self.win) / config.CHUNK_SIZE
                 
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfb_x, self.rfb_y, '-', color="#eb4034", alpha=1, label="Audio Signal")
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(awr.y, '-', color="#eb4034", alpha=1, label="Audio Signal")
-
-                #self.spg_canvas.axes.specgram(awr.y, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
+                # get magnitude 
+                psd = abs(spec)
                 
+                # convert to dB scale
+                psd = 20 * np.log10(psd)
 
-                #self.x = list(range(len(self.source)))
-                #self.y = self.source # use the amplitude of the audio data as the y data
-                #amplitude = np.fromstring(self.audio_handler.frame_buffer, np.int32)
-                # create a line object with random data
-                # variable for plotting
-                #x = np.arange(0, 2 * self.audio_handler.CHUNK, 2) # 2 * self.audio_handler.CHUNK
-                #x = list(range(len(self.audio_handler.raw_frame_buffer)))
-                #x = np.linspace(0, SAMPLESIZE-1, SAMPLESIZE)
-                # self.combined = []
-                # for elem in self.audio_handler.raw_frame_buffer:
-                #     print(elem)
-                #     for num in elem:
-                #         print(num)
-                #         self.combined.append(elem)
-                #self.spectrogram_plot, = self.spg_canvas.axes.plot(x,  self.audio_handler.raw_frame_buffer, '-', lw=2) # np.random.rand(self.audio_handler.CHUNK)
-
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.audio_handler.frame_buffer2, '-', color="#eb4034", alpha=1, label="Audio Signal")#
-
-                # def f(x):
-                #     return np.int(x)
-
-                # f2 = np.vectorize(f)
-
-                #f2(self.source)
-
-
-                # self.line1 = self.spg_canvas.axes.plot([],[])[0]
-                # self.line2 = self.spg_canvas.axes.plot([],[])[0]
-
-                # self.line1.set_data(r, [-1000]*l)
-                # self.line2.set_data(r, [-1000]*l)
-
-
-
-
-
-                # plot the FFT
-                #self.spectrogram_plot = self.spg_canvas.axes.plot(self.rfft_source, '-', color="#eb4034", alpha=1, label="Audio Signal")#
-                ##self.spg_canvas.axes.specgram(self.source2, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
-                #print(self.spectrogram_plot)
-            else:
-                self.spg_canvas.axes.cla()
-                self.spg_canvas.axes.set_ylabel('Frequency', color="#ffffff")
-                spectrum, freqs, time, image = self.spg_canvas.axes.specgram(self.audio_handler.np_buffer, Fs=config.SAMPLE_RATE, NFFT=512 ) # NFFT=512 noverlap=256, cmap='jet' ) # noverlap=256, cmap='jet'
-                
-                #self.spg_canvas.axes.set_ylim(-1, 1)
-                #self.spg_canvas.axes.set_xlim(0, len(self.audio_handler.np_buffer))
-                ##########self.spectrogram_plot[0].set_data(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer)
-                #self.spectrogram_plot[0].set_data(list(range(len(self.audio_handler.np_buffer))),self.audio_handler.np_buffer)
-                #self.spectrogram_plot[0].set_data(self.rfb_x, self.rfb_y)
-                ##self.spectrogram_plot[0].set_data(self.rfb_x2, self.source2)
-
-            self.spg_canvas.draw_idle()     # actually draw the new content
+                # roll down one and replace leading edge with new data
+                self.img_array = np.roll(self.img_array, -1, 0) # roll down one row
+                self.img_array[-1:] = psd[0:self.img_array.shape[1]] # only take the first half of the spectrum
+                self.img.setImage(self.img_array, autoLevels=False) # set the image data
 
     def update_textedit(self):
         """Triggered by a timer to invoke an update on text edit"""
@@ -549,8 +577,8 @@ class Base(QMainWindow):
             self.textEdit.insertPlainText( str(full_string) )
             self.textEdit.moveCursor(QTextCursor.End)
 
-            # update indicator text
-            self.indicator_text_label.setText( self.indicator_text() )
+            # # update indicator text
+            # self.indicator_text_label.setText( self.indicator_text() )
 
     def closeEvent(self,event):
         """close event is invoked on close but we want to prevent accidental close"""
