@@ -614,7 +614,7 @@ class Base(QMainWindow):
             else:
                 print("Audio stream is not active")
 
-    def set_plotdata(self, name, data_x, data_y):
+    def set_plotdata(self, name, data_x, data_y, auto_scale=True):
         if name in self.traces:
             #if np.array_equal(data_x,data_y):
             self.traces[name].setData(data_x, data_y)
@@ -624,10 +624,11 @@ class Base(QMainWindow):
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
                 self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
 
-                self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
-                self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
-                self.amplitude_canvas.setAutoVisible(y=1.0)  
-                self.amplitude_canvas.setAspectLocked(lock=False)  
+                if auto_scale:
+                    self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
+                    self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
+                    self.amplitude_canvas.setAutoVisible(y=1.0)  
+                    self.amplitude_canvas.setAspectLocked(lock=False)  
 
 
             elif name == 'amplitude2':
@@ -635,20 +636,22 @@ class Base(QMainWindow):
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
                 self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
             
-                self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
-                self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
-                self.amplitude_canvas.setAutoVisible(y=1.0)  
-                self.amplitude_canvas.setAspectLocked(lock=False)  
+                if auto_scale:
+                    self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
+                    self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
+                    self.amplitude_canvas.setAutoVisible(y=1.0)  
+                    self.amplitude_canvas.setAspectLocked(lock=False)  
 
             elif name == 'fft':
                 self.traces[name] = self.fft_canvas.plot(pen=pg.mkPen({'color': "#ff2a00"}), width=3)
-                self.fft_canvas.setYRange(0, 350, padding=0)
+                self.fft_canvas.setYRange(0, 250, padding=0)
                 self.fft_canvas.setXRange(0, int(self.audio_handler.SAMPLE_RATE/2), padding=0.005)
                 
-                self.fft_canvas.setMouseEnabled(x=False,y=False)  
-                self.fft_canvas.enableAutoRange(axis='y', enable=True)
-                self.fft_canvas.setAutoVisible(y=1.0)  
-                self.fft_canvas.setAspectLocked(lock=False)  
+                if auto_scale:
+                    self.fft_canvas.setMouseEnabled(x=False,y=False)  
+                    self.fft_canvas.enableAutoRange(axis='y', enable=True)
+                    self.fft_canvas.setAutoVisible(y=3.0)  
+                    self.fft_canvas.setAspectLocked(lock=False)  
             
             elif name == "spectrogram":
                 pass
@@ -685,7 +688,7 @@ class Base(QMainWindow):
                 self.negative_simplified_data.append(np.nanmin(data))
 
             # set the wave amplitude data
-            self.wave_x = list(range(len(self.source)))
+            self.wave_x = list(range(len(self.simplified_data)))#list(range(len(self.source)))
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
             
