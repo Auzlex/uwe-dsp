@@ -78,15 +78,15 @@ from tensorflow._api.v2 import random
 """
     Creating random tensors
 """
-# random_1 = tf.random.Generator.from_seed(42) # we set a seed to get reproducible results
-# random_1 = random.normal(shape=(3,2))
-# print(random_1)
+random_1 = tf.random.Generator.from_seed(42) # we set a seed to get reproducible results
+random_1 = random.normal(shape=(3,2))
+print(random_1)
 
-# random_2 = tf.random.Generator.from_seed(42)
-# random_2 = random_2.normal(shape=(3,2))
-# print(random_2)
+random_2 = tf.random.Generator.from_seed(42)
+random_2 = random_2.normal(shape=(3,2))
+print(random_2)
 
-# print(random_1 == random_2)
+print(random_1 == random_2)
 
 """
     Shuffling
