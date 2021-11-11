@@ -222,26 +222,8 @@ class Base(QMainWindow):
         self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
         self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
         self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
+        self.mel_spec_canvas = self.pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
         
-        # image for spectrogram
-        self.img = pg.ImageItem()
-        # add the img to the spg canvas
-        self.spg_canvas.addItem(self.img)
-
-        # set the image array to zeros
-        self.img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
-
-        # bipolar colormap
-        # pos = np.array([0., 1., 0.5, 0.25, 0.75])
-        # color = np.array([[0,255,255,255], [255,255,0,255], [0,0,0,255], (0, 0, 255, 255), (255, 0, 0, 255)], dtype=np.ubyte)
-        
-        #cmap = pg.ColorMap(pos, lut_cubehelix) # color
-        #lut = cmap.getLookupTable(0.0, 1.0, 256)
-
-        # colormap = cm.get_cmap("plasma")
-        # colormap._init()
-        # np.set_printoptions(threshold=sys.maxsize)
-
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
             [5.03830e-02, 2.98030e-02, 5.27975e-01, 1.00000e+00],
@@ -504,34 +486,81 @@ class Base(QMainWindow):
             [9.40015e-01, 9.75158e-01, 1.31326e-01, 1.00000e+00],
             [0.00000e+00, 0.00000e+00, 0.00000e+00, 0.00000e+00]
             ])
-
-
         #print(colormap._lut)
-       
         #print(colormap.N)
         # Convert matplotlib colormap from 0-1 to 0-255 for PyQtGraph
         #lut = (colormap._lut * 255).view(np.ndarray)[:colormap.N] 
         lut = (colourmap_lut * 255).view(np.ndarray)[:256] 
 
+        # image for spectrogram
+        self.spectrogram_img = pg.ImageItem()
+        # add the spectrogram_img to the spg canvas
+        self.spg_canvas.addItem(self.spectrogram_img)
+        # set the image array to zeros
+        self.spectrogram_img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
+
         # set colormap
-        self.img.setLookupTable(lut)
-        self.img.setLevels([-50,40])
+        self.spectrogram_img.setLookupTable(lut)
+        self.spectrogram_img.setLevels([-50,40])
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
         #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
         
         # set the y-axis to the correct frequency scale
-        yscale = 1.0/(self.img_array.shape[1]/freq[-1])
+        yscale = 1.0/(self.spectrogram_img_array.shape[1]/freq[-1])
 
-        # set img scale
-        self.img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+        # set spectrogram_img scale
+        self.spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
 
         # set the label of the canvas to show frequency on the Y axis
         self.spg_canvas.setLabel('left', 'Frequency', units='Hz')
 
+        """
+            Mel Spectrogram plot properties and setup
+        """
+
+        # image for mel spectrogram
+        self.mel_spectrogram_img = pg.ImageItem()
+        # add the mel_spectrogram_img to the mel_spec canvas
+        self.mel_spec_canvas.addItem(self.mel_spectrogram_img)
+        # set the image array to zeros
+        self.mel_spectrogram_img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
+
+        # set colormap
+        self.mel_spectrogram_img.setLookupTable(lut)
+        self.mel_spectrogram_img.setLevels([-50,40])
+
+        # setup the correct scaling for y-axis
+        freq = np.arange(0,int(config.SAMPLE_RATE/2))
+        #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
+        
+        # set the y-axis to the correct frequency scale
+        yscale = 1.0/(self.mel_spectrogram_img_array.shape[1]/freq[-1])
+
+        # set spectrogram_img scale
+        self.mel_spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+
+        # set the label of the canvas to show frequency on the Y axis
+        self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
+
+
+        # bipolar colormap
+        # pos = np.array([0., 1., 0.5, 0.25, 0.75])
+        # color = np.array([[0,255,255,255], [255,255,0,255], [0,0,0,255], (0, 0, 255, 255), (255, 0, 0, 255)], dtype=np.ubyte)
+        
+        #cmap = pg.ColorMap(pos, lut_cubehelix) # color
+        #lut = cmap.getLookupTable(0.0, 1.0, 256)
+
+        # colormap = cm.get_cmap("plasma")
+        # colormap._init()
+        # np.set_printoptions(threshold=sys.maxsize)
+
+
+
         # prepare window for later use
-        self.win = np.hanning(config.CHUNK_SIZE)
+        #self.win = np.hanning(config.CHUNK_SIZE)
+
 
         """
             Setup, GUI layout
@@ -559,7 +588,7 @@ class Base(QMainWindow):
         #grid_layout = QGridLayout()
         #self.setLayout(grid_layout)
 
-        #Overall_Layout.setRowStretch(1, 1)
+        Overall_Layout.setRowStretch(3, 1)
         #Overall_Layout.setColumnStretch(1, 2)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
@@ -727,9 +756,21 @@ class Base(QMainWindow):
                 psd = 20 * np.log10(psd)
 
                 # roll down one and replace leading edge with new data
-                self.img_array = np.roll(self.img_array, -1, 0) # roll down one row
-                self.img_array[-1:] = psd[0:self.img_array.shape[1]] # only take the first half of the spectrum
-                self.img.setImage(self.img_array, autoLevels=False) # set the image data
+                self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
+                self.spectrogram_img_array[-1:] = psd[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
+
+                # # update the mel spectrogram
+                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+
+                # # convert to dB scale
+                # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
+                # #mel_spec = 20 * np.log10(mel_spec)
+
+                # # roll down one and replace leading edge with new data
+                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
+                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
 
     def update_textedit(self):
         """Triggered by a timer to invoke an update on text edit"""
