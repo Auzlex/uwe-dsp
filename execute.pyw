@@ -4,19 +4,28 @@
 """
 #from matplotlib import cm # was used to get other colour maps
 # config and os modules
+import utility
+import tf_interface
 import librosa
-from pyqtgraph.colormap import ColorMap
 import config
 import audio_handler as audio
 import os
 import sys
 import ctypes
 
+import traceback
+
 # math, time modules
-import math
-import time
-import datetime
+# import math
+# import time
+# import datetime
 import numpy as np
+
+# use pyqtgraph instead of matplotlib
+import pyqtgraph as pg
+
+# import for debugging
+import logging
 
 # import pyqt5 modules
 from PyQt5 import QtCore
@@ -24,12 +33,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import QTimer#QSize, QTimer, 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
-
-# use pyqtgraph instead of matplotlib
-import pyqtgraph as pg
-
-# import for debugging
-import logging
+from pyqtgraph.colormap import ColorMap
 
 # configure the logging
 logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S',level=logging.INFO)
@@ -189,7 +193,7 @@ class Base(QMainWindow):
         self.fft_freq = [] # frequency for fft
 
         # get the file directory
-        root_dir_path = os.path.dirname(os.path.realpath(__file__))
+        root_dir_path = utility.get_root_dir_path()
 
         """
             label indicator
@@ -577,6 +581,12 @@ class Base(QMainWindow):
         self.pre_process_timer.timeout.connect(self.pre_process_data) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
+        self.ai_classify_timer = QTimer()
+        self.ai_classify_timer.setInterval(1000 * 10) # 500
+        self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
+
+
+        # Setup a timer to trigger the redraw by calling update_plot.
         self.timer2 = QTimer()
         self.timer2.setInterval(0) # 3000
         self.timer2.timeout.connect(self.update_plot) # self.update_plot
@@ -635,6 +645,8 @@ class Base(QMainWindow):
                 # begin the pre-process data timer
                 self.pre_process_timer.start()
 
+                self.ai_classify_timer.start()
+
                 # update plots
                 self.update_plot()
 
@@ -642,6 +654,26 @@ class Base(QMainWindow):
                 self.timer2.start()
             else:
                 print("Audio stream is not active")
+
+        # attempt to initialize an instance of the tf_interface
+        try:
+
+            # initialize the tf_interface
+            self.tf_model = tf_interface.TFLiteInterface(
+                os.path.join( 
+                    root_dir_path, 
+                    'tf_models', 
+                    'yamnet_classification_1.tflite'
+                ),
+                #24#self.audio_handler.np_buffer.size # size of our waveform
+            )
+
+            # adjust the size of the tensor
+            #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
+
+
+        except Exception as e:
+            print(f"Error when initializing the TFLiteInterface {e}")
 
     def set_plotdata(self, name, data_x, data_y, auto_scale=True):
         if name in self.traces:
@@ -720,7 +752,24 @@ class Base(QMainWindow):
             self.wave_x = list(range(len(self.simplified_data)))#list(range(len(self.source)))
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
-            
+        
+    def classify_audio_update(self):
+        # make sure source is long enough
+        if len(self.source) > 0:
+            try:
+                if self.tf_model is not None:
+                    # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
+                    new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
+                    #print(type(new_buffer), new_buffer.shape)
+                    #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
+
+                    # shove in our wave form into the TF Lite Model
+                    #self.tf_interface.resize_tensor_input(new_buffer.size)
+                    self.tf_model.feed(new_buffer)
+                    print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
+            except Exception:
+                print(f"Error performing TF prediction {traceback.format_exc()}")
+
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
         

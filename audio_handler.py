@@ -119,6 +119,9 @@ class AudioHandler(object):
         while (self.stream.is_active()): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
             time.sleep(2.0)
 
+    def resample(self, data, original_sr, target_sr):
+        """resample the data to the rate"""
+        return librosa.resample(data, original_sr, target_sr)
 
 
 class AudioWavReader(object):
