@@ -87,7 +87,7 @@ class TFLiteInterface:
         # setup label references
         labels_file = zipfile.ZipFile(self.model_path).open('yamnet_label_list.txt')
         self.labels = [l.decode('utf-8').strip() for l in labels_file.readlines()]
-        print(f"Labels: {self.labels}")
+        print(f"Labels: {self.labels}, {len(self.labels)}")
 
         print("Initialization finished.")
 

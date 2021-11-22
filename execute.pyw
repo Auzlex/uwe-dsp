@@ -15,6 +15,8 @@ import ctypes
 
 import traceback
 
+import threading
+
 # math, time modules
 # import math
 # import time
@@ -753,22 +755,44 @@ class Base(QMainWindow):
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
         
+
+    def perform_tf_classification(self):
+        """perform a classification using the tf_interface"""
+
+        try:
+            if self.tf_model is not None:
+                # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
+                new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
+                #print(type(new_buffer), new_buffer.shape)
+                #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
+
+                # shove in our wave form into the TF Lite Model
+                #self.tf_interface.resize_tensor_input(new_buffer.size)
+                self.tf_model.feed(new_buffer)
+                print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
+        except Exception:
+            print(f"Error performing TF prediction {traceback.format_exc()}")
+
+        # # make sure we have data
+        # if len(self.source) > 0:
+        #     # get the data
+        #     data = self.source[len(self.source)-1]
+
+        #     # get the classification
+        #     classification = self.tf_model.get_classification(data)
+
+        #     # update the label
+        #     self.label.setText(f"{classification}")
+
     def classify_audio_update(self):
         # make sure source is long enough
         if len(self.source) > 0:
-            try:
-                if self.tf_model is not None:
-                    # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
-                    new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
-                    #print(type(new_buffer), new_buffer.shape)
-                    #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
 
-                    # shove in our wave form into the TF Lite Model
-                    #self.tf_interface.resize_tensor_input(new_buffer.size)
-                    self.tf_model.feed(new_buffer)
-                    print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
-            except Exception:
-                print(f"Error performing TF prediction {traceback.format_exc()}")
+            tf_thread = threading.Thread(target=self.perform_tf_classification)
+            tf_thread.start()
+
+
+           
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
