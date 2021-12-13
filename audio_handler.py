@@ -6,14 +6,15 @@ import config # import our custom config file
 import pyaudio # to receive audio
 import librosa # to extract features
 import numpy as np # to handle arrays
-import time # to handle time
+#import time # to handle time
 
 class AudioHandler(object):
     """class that handles audio related stuff"""
 
-    def __init__(self):
-        """initialize the audio handler"""
-
+    def __init__(self) -> None:
+        """
+            initialize the audio handler
+        """
         print( "Initializing audio handler..." )
 
         # initialize the pyaudio object properties
@@ -23,11 +24,11 @@ class AudioHandler(object):
         self.CHUNK = config.CHUNK_SIZE * config.CHUNK_MULTIPLIER
 
         # max buffer time in seconds, used to cache data to max n seconds
-        self.max_buffer_time_in_seconds = config.MAX_BUFFER_TIME_IN_SECONDS
+        self.max_buffer_time = config.MAX_BUFFER_TIME
 
         # initialize the frame buffer with 0s
-        self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds )
-        self.np_buffer = np.array([0] * self.CHUNK * self.max_buffer_time_in_seconds * 10)
+        self.frame_buffer = [0] * int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time )
+        self.np_buffer = np.array([0] * self.CHUNK * self.max_buffer_time * 10)
 
         # used by the spectrograph
         self.np_buffer = np.arange(0,0, 2)
@@ -37,7 +38,7 @@ class AudioHandler(object):
 
         print( "Audio handler initialized." )
 
-    def start(self):
+    def start(self) -> None:
         """start the audio stream"""
 
         print( "Starting audio stream..." )
@@ -57,8 +58,7 @@ class AudioHandler(object):
 
         print( "Audio stream started." )
 
-
-    def stop(self):
+    def stop(self) -> None:
         """stop the audio stream"""
     
         print( "Stopping audio stream..." )
@@ -84,7 +84,7 @@ class AudioHandler(object):
         # numpy version of the frame buffer for spectrogram
         self.np_buffer = np.append( self.np_buffer, numpy_array.copy() )
     
-        # print(self.np_buffer.ndim, len(self.np_buffer), self.CHUNK * self.max_buffer_time_in_seconds, len(self.np_buffer) > self.CHUNK * self.max_buffer_time_in_seconds)
+        # print(self.np_buffer.ndim, len(self.np_buffer), self.CHUNK * self.max_buffer_time, len(self.np_buffer) > self.CHUNK * self.max_buffer_time)
 
         # data_np = np.array(numpy_array, dtype='d').flattern()
         # mfcc = librosa.feature.mfcc(self.np_buffer.copy(), sr=self.SAMPLE_RATE)
@@ -93,17 +93,17 @@ class AudioHandler(object):
         #amplitude = np.frombuffer(in_data,  dtype=np.float32)
         #print(librosa.feature.mfcc(numpy_array))
         #librosa.feature.mfcc(amplitude)
-        #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ))
+        #print(int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time ))
 
 
         #print(len(self.frame_buffer))
 
         # if the frames list is too long, remove the first element, we only want the last 5 seconds of audio
-        if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time_in_seconds ):
+        if len(self.frame_buffer) > int(self.SAMPLE_RATE / self.CHUNK * self.max_buffer_time ):
             self.frame_buffer.pop(0)
 
         # if the np buffer is too large we then check if its greater than the max chunk size we want
-        if len(self.np_buffer) > (self.CHUNK) * self.max_buffer_time_in_seconds * 10:
+        if len(self.np_buffer) > (self.CHUNK) * self.max_buffer_time * 10:
             # delete the first chunk if we exceed max time to track
             self.np_buffer = np.delete(self.np_buffer, list(range(0, self.CHUNK)))
 
@@ -113,27 +113,27 @@ class AudioHandler(object):
         """returns true if the audio stream is active"""
         return self.stream.is_active()
 
-    def mainloop(self):
-        """main loop for the audio handler"""
+    # def mainloop(self):
+    #     """main loop for the audio handler"""
 
-        while (self.stream.is_active()): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
-            time.sleep(2.0)
+    #     while (self.stream.is_active()): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
+    #         time.sleep(2.0)
 
     def resample(self, data, original_sr, target_sr):
         """resample the data to the rate"""
         return librosa.resample(data, original_sr, target_sr)
 
 
-class AudioWavReader(object):
+# class AudioWavReader(object):
 
-    def __init__(self, file_path) -> None:
+#     def __init__(self, file_path) -> None:
         
-        # load in the libsora file
-        self.y, self.sr = librosa.load(file_path, sr=None)
+#         # load in the libsora file
+#         self.y, self.sr = librosa.load(file_path, sr=None)
 
-        print(self.y, len(self.y))
-        print("\n\n")
-        print(self.sr)
+#         print(self.y, len(self.y))
+#         print("\n\n")
+#         print(self.sr)
 
 
 # if __name__ == "__main__":

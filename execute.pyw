@@ -2,28 +2,17 @@
 """
     Import Modules
 """
-#from matplotlib import cm # was used to get other colour maps
-# config and os modules
-import utility
-import tf_interface
-import librosa
-import config
-import audio_handler as audio
-import os
-import sys
-import ctypes
-
-import traceback
-
+import config # custom module that contains all the configuration information
+import utility # custom module that contains all the utility functions
+import tf_interface # custom module that contains tensorflow interface functions
+import audio_handler as audio # custom audio handler class, handles audio input and output
+import librosa # audio library
+import os # used to determine if the app is running on windows or not
+import sys # used tp tie in stdout and stderr to the console
+import ctypes # used to access windows ctypes
+import traceback # used for debugging
 import threading
-
-# math, time modules
-# import math
-# import time
-# import datetime
 import numpy as np
-
-# use pyqtgraph instead of matplotlib
 import pyqtgraph as pg
 
 # import for debugging
@@ -36,9 +25,16 @@ from PyQt5.QtCore import QTimer#QSize, QTimer,
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 from pyqtgraph.colormap import ColorMap
+#from matplotlib import cm # was used to get other colour maps
 
 # configure the logging
 logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S',level=logging.INFO)
+
+# enable logging to verbose
+logging.getLogger().setLevel(logging.DEBUG)
+
+# disable numpy divide by zero warning
+np.seterr(divide = 'ignore')
 
 # application version
 __version__ = '0.0.1'
@@ -46,13 +42,13 @@ __version__ = '0.0.1'
 """
     PyQT5 Application
 """
-
-# stores the python output into the array
-global PYTHON_OUTPUT
+global PYTHON_OUTPUT # stores our python output into console
 PYTHON_OUTPUT = []
 
-class MyStream(object):
-    """my stream class used to """
+class StandardStream(object):
+    """
+        This function captures print statements
+    """
 
     def __init__(self, boolean = False) -> None:
         super().__init__()
@@ -80,109 +76,63 @@ class Base(QMainWindow):
 
     def __init__(self): # initialization function
         super().__init__() # invoke derived class constructor
-        # self.last_closes_size = 0 # used to gate keep update timer from spamming/wasting cpu usage on updating plots
-        self.last_len_terminal_lines = 0 # also used to gate keep update timer from spamming wasting cpu usage
+        self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
         self.setupUI() # invoke the ui initialize
 
-    def force_buy(self):
-        """invoked on GUI force buy button"""
-        print("button00 was invoked!")
+    def key_in_augmented_intelligence(self):
+        """
+            Function: key_in_augmented_intelligence()
+            Description: invoked when the user presses the key in button, this function will
+            start the key in process which allows initializes the AI to listen into the audio data
+        """
+        logging.info("key in button pressed, starting key in process")
 
-        # try:
-
-        #     if not in_position and not busy:
-
-        #         result = QMessageBox.question(self,
-        #                 "Confirm Buy Override...",
-        #                 "Are you sure you want force buy?",
-        #                 QMessageBox.Yes| QMessageBox.No)
-
-        #         if result == QMessageBox.Yes: # prevent miss clicks
-
-        #             print("BUY FORCE WAS CONFIRMED")
-
-        #             perform_indicator_calculations()
-
-        #             # update stop loss/stop profit
-        #             last_stop_loss = stop_loss_price
-        #             last_stop_profit = stop_profit_price
-
-        #             # create a new thread to force in position
-        #             thread_place_buy_order = threading.Thread(target=t_force_position)
-        #             thread_place_buy_order.start()
-                
-        #     else:
-
-        #         response = QMessageBox.information(self, "Request Denied", "We are already in position, or the bot is busy!", QMessageBox.Ok)
-
-        # except Exception as e:
-        #     print(f"[FORCE BUY ERROR] {str(e)}")
-
-    def force_sell(self):
-        """invoked on GUI force sell button"""
-        print("button01 was invoked!")
-
-        # try:
-
-        #     if in_position and not busy:
-
-        #         result = QMessageBox.question(
-        #             self,
-        #             "Confirm Sell Override...",
-        #             "Are you sure you want force sell?",
-        #             QMessageBox.Yes| QMessageBox.No
-        #         )
-
-        #         if result == QMessageBox.Yes: # prevent miss clicks
-
-        #             print("SELL FORCE WAS CONFIRMED")
-
-        #             # create a new thread to force exit position
-        #             thread_place_sell_order = threading.Thread(target=t_force_exit_position)
-        #             thread_place_sell_order.start()
-                
-        #     else:
-
-        #         response = QMessageBox.information(self, "Request Denied", "We are not in position to sell, or the bot is busy!", QMessageBox.Ok)
-
-        # except Exception as e:
-        #     logging.critical( f"force_sell() -> invoked error: {str(e)}" )
+    def key_out_augmented_intelligence(self):
+        """
+            Function: key_out_augmented_intelligence()
+            Description: invoked when the user presses the key out button, this function will
+            stop the AI from listening into the audio data.
+        """
+        logging.info("key out button pressed, stopping key in process")
 
     def indicator_text(self):
-        """invoked by update plot to give status update of the bots"""
+        """
+            Function: indicator_text()
+            Description: this function will update the indicator text
+        """
+        s = None
 
-        # profit_summary = (f"PROFIT/LOSS TOTAL: <font color=\'green\'>{str(CURRENCY_SYMBOL)}" if gains_loss_total > 0 else f"PROFIT/LOSS TOTAL: <font color=\'red\'>{str(CURRENCY_SYMBOL)}") + f"{str(round(gains_loss_total,CURRENCY_ROUNDING))}</font>"
-        # trend = str(TRADE_TREND_IS_BULLISH).lower().replace('1','<font color=\'green\'>bullish</font>').replace('0','<font color=\'red\'>bearish</font>')
-
-        # in_position_str = (f"<font color=\'green\'>YES</font> | SL: <font color=\'#ff1515\'>{round(last_stop_loss,TRADE_ASSET_PRECISION)}:{round(last_stop_loss_limit,TRADE_ASSET_PRECISION)}</font> | HODL:<font color=\'#7d7dff\'>{round(last_buy_in_dict['avg'],TRADE_ASSET_PRECISION)}</font> | SP: <font color=\'#0d98ba\'>{round(last_stop_profit,TRADE_ASSET_PRECISION)}:{round(last_stop_profit_limit,TRADE_ASSET_PRECISION)}</font>" if in_position else "<font color=\'red\'>NO</font>")
-
-        # if TRADE_WITH_BLANKS:
-        #     profit_summary += " | <font color=\'orange\'>DEBUG</font>"
-
-        s = ""
-
+        # if the audio handler is not none
         if self.audio_handler is None:
+            # ourput no audio handler
             s = "<font color=\'red\'>NO AUDIO HANDLER</font>"
         else:
+            # get audio handler information
             s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.SAMPLE_RATE}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.CHANNELS}</font> | chunk: <font color=\'lime\'>{self.audio_handler.CHUNK}</font>").upper()
 
+        # return string
         return s
 
-    def setupUI(self):
+    def setupUI(self) -> None:
+        """
+            Function: setupUI()
+            Description: this function will setup the UI
+        """
 
-        #self.setToolTip('This is a <b>QWidget</b> widget')
+        # add the key_in_augmented_intelligence function to the key_in_button
+        key_in_button = QAction('Activate AI', self)
+        key_in_button.setShortcut('Ctrl+Q')
+        key_in_button.triggered.connect(self.key_in_augmented_intelligence)
 
-        # act_force_buy = QAction('BUTTON 00', self)
-        # #startAct.setShortcut('Ctrl+Q')
-        # act_force_buy.triggered.connect(self.force_buy)
+        # add the key_out_augmented_intelligence function to the key_in_button
+        key_out_button = QAction('Deactivate AI', self)
+        key_out_button.setShortcut('Ctrl+W')
+        key_out_button.triggered.connect(self.key_out_augmented_intelligence)
 
-        # act_force_sell = QAction('BUTTON 01', self)
-        # #pauseAct.setShortcut('Ctrl+W')
-        # act_force_sell.triggered.connect(self.force_sell)
-
-        # self.toolbar = self.addToolBar('Override Controls Toolbar')
-        # self.toolbar.addAction(act_force_buy)
-        # self.toolbar.addAction(act_force_sell)
+        # add the buttons to the toolbar
+        self.toolbar = self.addToolBar('Augmented Intelligence Control Toolbar')
+        self.toolbar.addAction(key_in_button)
+        self.toolbar.addAction(key_out_button)
 
         """
             Initial Variables 
@@ -200,7 +150,6 @@ class Base(QMainWindow):
         """
             label indicator
         """
-
         # label indicator
         self.indicator_text_label = QLabel()
 
@@ -224,7 +173,6 @@ class Base(QMainWindow):
         """
             Canvas References for Plotting
         """
-    
         self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
         self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
         self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
@@ -511,7 +459,6 @@ class Base(QMainWindow):
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
-        #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
         
         # set the y-axis to the correct frequency scale
         yscale = 1.0/(self.spectrogram_img_array.shape[1]/freq[-1])
@@ -525,7 +472,6 @@ class Base(QMainWindow):
         """
             Mel Spectrogram plot properties and setup
         """
-
         # image for mel spectrogram
         self.mel_spectrogram_img = pg.ImageItem()
         # add the mel_spectrogram_img to the mel_spec canvas
@@ -539,7 +485,6 @@ class Base(QMainWindow):
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
-        #freq = np.arange((config.CHUNK_SIZE/2)+1)/(float(config.CHUNK_SIZE)/config.SAMPLE_RATE)
         
         # set the y-axis to the correct frequency scale
         yscale = 1.0/(self.mel_spectrogram_img_array.shape[1]/freq[-1])
@@ -550,24 +495,6 @@ class Base(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
-
-        # bipolar colormap
-        # pos = np.array([0., 1., 0.5, 0.25, 0.75])
-        # color = np.array([[0,255,255,255], [255,255,0,255], [0,0,0,255], (0, 0, 255, 255), (255, 0, 0, 255)], dtype=np.ubyte)
-        
-        #cmap = pg.ColorMap(pos, lut_cubehelix) # color
-        #lut = cmap.getLookupTable(0.0, 1.0, 256)
-
-        # colormap = cm.get_cmap("plasma")
-        # colormap._init()
-        # np.set_printoptions(threshold=sys.maxsize)
-
-
-
-        # prepare window for later use
-        #self.win = np.hanning(config.CHUNK_SIZE)
-
-
         """
             Setup, GUI layout
         """
@@ -575,7 +502,7 @@ class Base(QMainWindow):
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
         self.timer.setInterval(500) # 500
-        self.timer.timeout.connect(self.update_textedit) # self.update_plot
+        self.timer.timeout.connect(self.update_console) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.pre_process_timer = QTimer()
@@ -587,29 +514,23 @@ class Base(QMainWindow):
         self.ai_classify_timer.setInterval(1000 * 10) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
-
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer2 = QTimer()
         self.timer2.setInterval(0) # 3000
         self.timer2.timeout.connect(self.update_plot) # self.update_plot
 
+        # setup the layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
+
+        # create the layout
         Overall_Layout = QGridLayout(central_widget)
-
-        #grid_layout = QGridLayout()
-        #self.setLayout(grid_layout)
-
         Overall_Layout.setRowStretch(3, 1)
-        #Overall_Layout.setColumnStretch(1, 2)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
         Overall_Layout.addWidget( self.pyqtplot_rendertarget, 3, 1 )
 
-        # Overall_Layout.addWidget( self.canvas, 3, 1 )
-        # Overall_Layout.addWidget( self.fft_canvas, 4, 1 )
-        # Overall_Layout.addWidget( self.spg_canvas, 4, 1 )
-
+        # setup the window layout
         self.setGeometry(300, 300, 800, 900)        # set the size of the window
         self.setWindowTitle('multi-label sound event classification system'.upper())              # set window title Audio.To.SpectroGraph
         self.setWindowIcon(QIcon(os.path.join( root_dir_path, 'icon.png' )))       # set window icon
@@ -618,9 +539,8 @@ class Base(QMainWindow):
         self.show()
 
         # hook events for python program out so that we can view debug information of the last 250 characters
-        sys.stdout = MyStream()
-        sys.stderr = MyStream(True)
-
+        sys.stdout = StandardStream()
+        sys.stderr = StandardStream(True)
 
         # update text timer
         self.timer.start()
@@ -637,17 +557,9 @@ class Base(QMainWindow):
                 if self.audio_handler.is_stream_active():
                     print("Audio stream is active")
 
-
-                    # begin bot updating on another thread
-                    # self.thread_audio_data_fetcher = threading.Thread(target=self.frame_fetcher)
-                    # self.thread_audio_data_fetcher.start()
-
-                # only big updating plots if we have an audio stream duh!
-
-                # begin the pre-process data timer
-                self.pre_process_timer.start()
-
-                self.ai_classify_timer.start()
+                # begin the timers
+                self.pre_process_timer.start() # start the pre-processing timer
+                #self.ai_classify_timer.start() # start the AI classification timer
 
                 # update plots
                 self.update_plot()
@@ -657,31 +569,38 @@ class Base(QMainWindow):
             else:
                 print("Audio stream is not active")
 
-        # attempt to initialize an instance of the tf_interface
-        try:
+        # # attempt to initialize an instance of the tf_interface
+        # try:
 
-            # initialize the tf_interface
-            self.tf_model = tf_interface.TFLiteInterface(
-                os.path.join( 
-                    root_dir_path, 
-                    'tf_models', 
-                    'yamnet_classification_1.tflite'
-                ),
-                #24#self.audio_handler.np_buffer.size # size of our waveform
-            )
+        #     # initialize the tf_interface
+        #     self.tf_model = tf_interface.TFLiteInterface(
+        #         os.path.join( 
+        #             root_dir_path, 
+        #             'tf_models', 
+        #             'yamnet_classification_1.tflite'
+        #         ),
+        #         #24#self.audio_handler.np_buffer.size # size of our waveform
+        #     )
 
-            # adjust the size of the tensor
-            #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
+        #     # adjust the size of the tensor
+        #     #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
 
+        # except Exception as e:
+        #     print(f"Error when initializing the TFLiteInterface {e}")
 
-        except Exception as e:
-            print(f"Error when initializing the TFLiteInterface {e}")
+    def set_plotdata(self, name, data_x, data_y, auto_scale=True) -> None:
+        """
+            Function: set_plotdata
+            Description: set the data for the plot depending on the name of the plot
+        """
 
-    def set_plotdata(self, name, data_x, data_y, auto_scale=True):
+        # if the given name is in the self.traces dictionary
         if name in self.traces:
-            #if np.array_equal(data_x,data_y):
+            # then update the data
             self.traces[name].setData(data_x, data_y)
         else:
+
+            # if the name is not in the self.traces dictionary, then create a new plot
             if name == 'amplitude':
                 self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
@@ -692,7 +611,6 @@ class Base(QMainWindow):
                     self.amplitude_canvas.enableAutoRange(axis='y', enable=True)
                     self.amplitude_canvas.setAutoVisible(y=1.0)  
                     self.amplitude_canvas.setAspectLocked(lock=False)  
-
 
             elif name == 'amplitude2':
                 self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
@@ -715,15 +633,6 @@ class Base(QMainWindow):
                     self.fft_canvas.enableAutoRange(axis='y', enable=True)
                     self.fft_canvas.setAutoVisible(y=3.0)  
                     self.fft_canvas.setAspectLocked(lock=False)  
-            
-            elif name == "spectrogram":
-                pass
-            # if name == 'spectrum':
-            #     self.traces[name] = self.spectrum.plot(pen='m', width=3)
-            #     self.spectrum.setLogMode(x=True, y=True)
-            #     self.spectrum.setYRange(-4, 0, padding=0)
-            #     self.spectrum.setXRange(
-            #         np.log10(20), np.log10(self.RATE / 2), padding=0.005)
 
     def pre_process_data(self):
         """data that is required by graphs but kept outside the update loop"""
@@ -754,45 +663,6 @@ class Base(QMainWindow):
             self.wave_x = list(range(len(self.simplified_data)))#list(range(len(self.source)))
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
-        
-
-    def perform_tf_classification(self):
-        """perform a classification using the tf_interface"""
-
-        try:
-            if self.tf_model is not None:
-                # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
-                new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
-                #print(type(new_buffer), new_buffer.shape)
-                #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
-
-                # shove in our wave form into the TF Lite Model
-                #self.tf_interface.resize_tensor_input(new_buffer.size)
-                self.tf_model.feed(new_buffer)
-                print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
-        except Exception:
-            print(f"Error performing TF prediction {traceback.format_exc()}")
-
-        # # make sure we have data
-        # if len(self.source) > 0:
-        #     # get the data
-        #     data = self.source[len(self.source)-1]
-
-        #     # get the classification
-        #     classification = self.tf_model.get_classification(data)
-
-        #     # update the label
-        #     self.label.setText(f"{classification}")
-
-    def classify_audio_update(self):
-        # make sure source is long enough
-        if len(self.source) > 0:
-
-            tf_thread = threading.Thread(target=self.perform_tf_classification)
-            tf_thread.start()
-
-
-           
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
@@ -845,16 +715,16 @@ class Base(QMainWindow):
                 # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
                 # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
 
-    def update_textedit(self):
+    def update_console(self):
         """Triggered by a timer to invoke an update on text edit"""
 
         global PYTHON_OUTPUT
 
         # only update on change
-        if len(PYTHON_OUTPUT) != self.last_len_terminal_lines:
+        if len(PYTHON_OUTPUT) != self.ltl:
 
             # update last count
-            self.last_len_terminal_lines = len(PYTHON_OUTPUT)
+            self.ltl = len(PYTHON_OUTPUT)
 
             self.textEdit.clear()
 
@@ -867,7 +737,42 @@ class Base(QMainWindow):
 
             # # update indicator text
             # self.indicator_text_label.setText( self.indicator_text() )
+ 
+    def perform_tf_classification(self):
+        """perform a classification using the tf_interface"""
 
+        try:
+            if self.tf_model is not None:
+                # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
+                new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
+                #print(type(new_buffer), new_buffer.shape)
+                #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
+
+                # shove in our wave form into the TF Lite Model
+                #self.tf_interface.resize_tensor_input(new_buffer.size)
+                self.tf_model.feed(new_buffer)
+                print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
+        except Exception:
+            print(f"Error performing TF prediction {traceback.format_exc()}")
+
+        # # make sure we have data
+        # if len(self.source) > 0:
+        #     # get the data
+        #     data = self.source[len(self.source)-1]
+
+        #     # get the classification
+        #     classification = self.tf_model.get_classification(data)
+
+        #     # update the label
+        #     self.label.setText(f"{classification}")
+
+    def classify_audio_update(self):
+        # make sure source is long enough
+        if len(self.source) > 0:
+
+            tf_thread = threading.Thread(target=self.perform_tf_classification)
+            tf_thread.start()
+        
     def closeEvent(self,event):
         """close event is invoked on close but we want to prevent accidental close"""
         
@@ -890,7 +795,6 @@ class Base(QMainWindow):
 
             sys.stdout = sys.__stdout__
             event.accept()
-
 
 def execute():
     """starts the pyqt5 application"""
