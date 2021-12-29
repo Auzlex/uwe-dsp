@@ -569,6 +569,8 @@ class Base(QMainWindow):
             else:
                 print("Audio stream is not active")
 
+        #self.tf_model = None
+
         # # attempt to initialize an instance of the tf_interface
         # try:
 
