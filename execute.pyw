@@ -72,6 +72,25 @@ class StandardStream(object):
                 # forget the first 500 values
                 PYTHON_OUTPUT = PYTHON_OUTPUT[500:]
 
+# configure matplotlib to use a QT backend
+import matplotlib
+#import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
+
+# configure the matplotlib to change the tick colours to white
+plt.rcParams['xtick.color'] = "w"
+plt.rcParams['ytick.color'] = "w"
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+class MplCanvas(FigureCanvas):
+    def __init__(self, parent=None, titleinfo="N/A", width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi,facecolor="#1f2124")
+        fig.suptitle( titleinfo, color="#ffffff" ) # set figure suptitle
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas, self).__init__(fig)
+
 class Base(QMainWindow):
 
     def __init__(self): # initialization function
@@ -177,7 +196,32 @@ class Base(QMainWindow):
         self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
         self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
         self.mel_spec_canvas = self.pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
+
         
+        #self.w = gl.GLViewWidget()
+
+        # self.w = gl.GLViewWidget(self)
+        # #self.w.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        # #self.w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # #self.w.customContextMenuRequested.connect(self.showContextMenu)
+ 
+
+        # # create the background grids
+        # gx = gl.GLGridItem()
+        # gx.rotate(90, 0, 1, 0)
+        # gx.translate(-10, 0, 0)
+        # self.w.addItem(gx)
+        # gy = gl.GLGridItem()
+        # gy.rotate(90, 1, 0, 0)
+        # gy.translate(0, -10, 0)
+        # self.w.addItem(gy)
+        # gz = gl.GLGridItem()
+        # gz.translate(0, 0, -10)
+        # self.w.addItem(gz)
+
+        # self.w.setWindowTitle('pyqtgraph example: GLLinePlotItem')
+        # self.w.setGeometry(0, 110, 1920, 1080)
+
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
             [5.03830e-02, 2.98030e-02, 5.27975e-01, 1.00000e+00],
@@ -495,6 +539,25 @@ class Base(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
+        """ Machine Learning FrameWork visualization """
+        
+        self.ml_v_canvas = MplCanvas(self, titleinfo="Machine Learning Visualizer".upper(), width=10, height=4, dpi=70)
+
+        # sets the axis facecolour and label colour
+        self.ml_v_canvas.axes.set_facecolor('#23272a')
+        self.ml_v_canvas.axes.set_axisbelow(True)
+        self.ml_v_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
+
+        # self.ml_v_canvas.axes.set_xlabel("x")
+        # self.ml_v_canvas.axes.set_ylabel("y")
+        # self.ml_v_canvas.axes.set_zlabel("z")
+    
+        for spine in self.ml_v_canvas.axes.spines.values():
+            spine.set_edgecolor('#1d1e21')
+
+        # draw canvas
+        self.ml_v_canvas.draw()              # draw the figure first
+
         """
             Setup, GUI layout
         """
@@ -525,13 +588,20 @@ class Base(QMainWindow):
 
         # create the layout
         Overall_Layout = QGridLayout(central_widget)
-        Overall_Layout.setRowStretch(3, 1)
+        Overall_Layout.setRowStretch(3, 3)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
         Overall_Layout.addWidget( self.pyqtplot_rendertarget, 3, 1 )
+        #Overall_Layout.addWidget( self.w, 4, 1 )
+
+        # console output
+        #self.textEdit2 = QTextEdit()
+        #self.textEdit2.setReadOnly(True)
+        #self.textEdit2.verticalScrollBar().setValue(1)
+        #Overall_Layout.addWidget( self.ml_v_canvas, 2, 2 )
 
         # setup the window layout
-        self.setGeometry(300, 300, 800, 900)        # set the size of the window
+        self.setGeometry(300, 300, 1280, 720)        # set the size of the window
         self.setWindowTitle('multi-label sound event classification system'.upper())              # set window title Audio.To.SpectroGraph
         self.setWindowIcon(QIcon(os.path.join( root_dir_path, 'icon.png' )))       # set window icon
 
@@ -569,23 +639,77 @@ class Base(QMainWindow):
             else:
                 print("Audio stream is not active")
 
-        #self.tf_model = None
+        self.tf_model = None
 
-        # # attempt to initialize an instance of the tf_interface
-        # try:
+        # attempt to initialize an instance of the tf_interface
+        #try:
 
-        #     # initialize the tf_interface
-        #     self.tf_model = tf_interface.TFLiteInterface(
-        #         os.path.join( 
-        #             root_dir_path, 
-        #             'tf_models', 
-        #             'yamnet_classification_1.tflite'
-        #         ),
-        #         #24#self.audio_handler.np_buffer.size # size of our waveform
-        #     )
+        # initialize the tf_interface
+        self.tf_model = tf_interface.TFLiteInterface(
+            os.path.join( 
+                root_dir_path, 
+                'tf_models', 
+                'yamnet_classification_1.tflite'
+            ),
+            #24#self.audio_handler.np_buffer.size # size of our waveform
+        )
 
-        #     # adjust the size of the tensor
-        #     #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
+        
+        def _plot_dots(layers_array, layers_name, layers_color, layers_marker, ax, xy_max):
+            """plot layers units as dots"""
+            temp = True
+            last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
+
+            #scatter = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(30, 255, 35, 255))
+
+            for layer, name, color_in, marker in zip(layers_array, layers_name, layers_color, layers_marker):
+                line_x, line_y, line_z = [], [], []
+                color_count = 0
+
+                for j in layer:
+                    my_x, my_y, my_z = [], [], []
+                    temp_list_l = []
+
+                    for k in j[0]:
+                        k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
+                        my_x += k
+
+                    line_x.append([k[0], k[-1]])
+
+                    for l in j[1]:
+                        l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
+                        my_y += l
+                        temp_list_l.append(l[0])
+
+                    line_y.append([temp_list_l[0], temp_list_l[-1]])
+
+                    for k in j[2]:
+                        my_z += k
+
+                    line_z.append([k[0], k[-1]])
+
+                    if color_in == 'rgb':
+                        color = color_in[color_count]
+                        color_count += 1
+                    else:
+                        color = color_in
+
+                    
+
+                    ax.scatter3d(my_x, my_z, my_y, c=color, marker=marker)
+                    # # adding spots to the scatter plot
+                    # scatter.addPoints(x_data, y_data)
+            
+                    # # add item to plot window
+                    # # adding scatter plot item to the plot window
+                    # plot.addItem(scatter)
+
+        #_plot_dots(self.tf_model.layers_array, self.tf_model.layers_name, self.tf_model.layers_color, self.tf_model.layers_marker, self.ml_v_canvas.axes, self.tf_model.xy_max)
+
+        #self.ml_v.plot( self.tf_model. )
+
+            # adjust the size of the tensor
+            #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
 
         # except Exception as e:
         #     print(f"Error when initializing the TFLiteInterface {e}")
