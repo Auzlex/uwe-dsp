@@ -14,6 +14,7 @@ import traceback # used for debugging
 import threading
 import numpy as np
 import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 
 # import for debugging
 import logging
@@ -25,6 +26,7 @@ from PyQt5.QtCore import QTimer#QSize, QTimer,
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 from pyqtgraph.colormap import ColorMap
+
 #from matplotlib import cm # was used to get other colour maps
 
 # configure the logging
@@ -72,31 +74,12 @@ class StandardStream(object):
                 # forget the first 500 values
                 PYTHON_OUTPUT = PYTHON_OUTPUT[500:]
 
-# configure matplotlib to use a QT backend
-import matplotlib
-#import matplotlib.lines as mlines
-import matplotlib.pyplot as plt
-
-# configure the matplotlib to change the tick colours to white
-plt.rcParams['xtick.color'] = "w"
-plt.rcParams['ytick.color'] = "w"
-matplotlib.use('Qt5Agg')
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-
-class MplCanvas(FigureCanvas):
-    def __init__(self, parent=None, titleinfo="N/A", width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi,facecolor="#1f2124")
-        fig.suptitle( titleinfo, color="#ffffff" ) # set figure suptitle
-        self.axes = fig.add_subplot(111)
-        super(MplCanvas, self).__init__(fig)
-
-class Base(QMainWindow):
+class ApplicationWindow(QMainWindow):
 
     def __init__(self): # initialization function
         super().__init__() # invoke derived class constructor
         self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
-        self.setupUI() # invoke the ui initialize
+        self.setup_user_interface() # invoke the ui initialize
 
     def key_in_augmented_intelligence(self):
         """
@@ -132,11 +115,12 @@ class Base(QMainWindow):
         # return string
         return s
 
-    def setupUI(self) -> None:
+    def setup_user_interface(self) -> None:
         """
-            Function: setupUI()
+            Function: setup_user_interface()
             Description: this function will setup the UI
         """
+        #self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
         # add the key_in_augmented_intelligence function to the key_in_button
         key_in_button = QAction('Activate AI', self)
@@ -146,16 +130,39 @@ class Base(QMainWindow):
         # add the key_out_augmented_intelligence function to the key_in_button
         key_out_button = QAction('Deactivate AI', self)
         key_out_button.setShortcut('Ctrl+W')
-        key_out_button.triggered.connect(self.key_out_augmented_intelligence)
+        key_out_button.triggered.connect(self.key_out_augmented_intelligence) 
 
+        """Microphone Selection ComboBox"""
+        # label
+        self.mscb_label = QLabel()
+        self.mscb_label.setText( "Target Microphone:" )
+
+        self.mscb = pg.ComboBox()
+        items = {'a': 1, 'b': 2, 'c': 3}
+        self.mscb.setItems(items)
+        self.mscb.setValue(1)
+
+        """Samplerate Selection ComboBox"""
+        # label
+        self.sscb_label = QLabel()
+        self.sscb_label.setText( "Target Samplerate:" )
+
+        self.sscb = pg.ComboBox()
+        items = {'a': 1, 'b': 2, 'c': 3}
+        self.sscb.setItems(items)
+        self.sscb.setValue(1)
+
+        """Master Control Bar"""
         # add the buttons to the toolbar
-        self.toolbar = self.addToolBar('Augmented Intelligence Control Toolbar')
+        self.toolbar = self.addToolBar('Master Control Toolbar')
         self.toolbar.addAction(key_in_button)
         self.toolbar.addAction(key_out_button)
+        self.toolbar.addWidget(self.mscb_label)
+        self.toolbar.addWidget(self.mscb)
+        self.toolbar.addWidget(self.sscb_label)
+        self.toolbar.addWidget(self.sscb)
 
-        """
-            Initial Variables 
-        """
+        """Initial Variables """
 
         self.audio_handler = None # set to none so that we can check if it is None later
         self.source = [] # source of our frame buffer
@@ -166,9 +173,7 @@ class Base(QMainWindow):
         # get the file directory
         root_dir_path = utility.get_root_dir_path()
 
-        """
-            label indicator
-        """
+        """label indicator"""
         # label indicator
         self.indicator_text_label = QLabel()
 
@@ -180,24 +185,19 @@ class Base(QMainWindow):
         self.textEdit.setReadOnly(True)
         self.textEdit.verticalScrollBar().setValue(1)
 
-        """
-            Pyqtplot render target
-        """
+        """Pyqtplot render target for audio"""
         pg.setConfigOptions(antialias=True) # set antialiasing on for prettier plots
-        self.pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window".upper())
+        self.audio_pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window".upper())
 
         # has a list of all our plots that we will dynamically update
         self.traces = dict()
 
-        """
-            Canvas References for Plotting
-        """
-        self.amplitude_canvas = self.pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
-        self.fft_canvas = self.pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
-        self.spg_canvas = self.pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
-        self.mel_spec_canvas = self.pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
+        """ Canvas References for Plotting"""
+        self.amplitude_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
+        self.fft_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
+        self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
+        self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
 
-        
         #self.w = gl.GLViewWidget()
 
         # self.w = gl.GLViewWidget(self)
@@ -513,9 +513,7 @@ class Base(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.spg_canvas.setLabel('left', 'Frequency', units='Hz')
 
-        """
-            Mel Spectrogram plot properties and setup
-        """
+        """Mel Spectrogram plot properties and setup"""
         # image for mel spectrogram
         self.mel_spectrogram_img = pg.ImageItem()
         # add the mel_spectrogram_img to the mel_spec canvas
@@ -539,29 +537,7 @@ class Base(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
-        """ Machine Learning FrameWork visualization """
-        
-        self.ml_v_canvas = MplCanvas(self, titleinfo="Machine Learning Visualizer".upper(), width=10, height=4, dpi=70)
-
-        # sets the axis facecolour and label colour
-        self.ml_v_canvas.axes.set_facecolor('#23272a')
-        self.ml_v_canvas.axes.set_axisbelow(True)
-        self.ml_v_canvas.axes.tick_params(color="#1f2124", labelcolor='#ffffff')
-
-        # self.ml_v_canvas.axes.set_xlabel("x")
-        # self.ml_v_canvas.axes.set_ylabel("y")
-        # self.ml_v_canvas.axes.set_zlabel("z")
-    
-        for spine in self.ml_v_canvas.axes.spines.values():
-            spine.set_edgecolor('#1d1e21')
-
-        # draw canvas
-        self.ml_v_canvas.draw()              # draw the figure first
-
-        """
-            Setup, GUI layout
-        """
-
+        """Setup, GUI layout"""
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
         self.timer.setInterval(500) # 500
@@ -591,14 +567,32 @@ class Base(QMainWindow):
         Overall_Layout.setRowStretch(3, 3)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
-        Overall_Layout.addWidget( self.pyqtplot_rendertarget, 3, 1 )
-        #Overall_Layout.addWidget( self.w, 4, 1 )
+        Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
 
-        # console output
-        #self.textEdit2 = QTextEdit()
-        #self.textEdit2.setReadOnly(True)
-        #self.textEdit2.verticalScrollBar().setValue(1)
-        #Overall_Layout.addWidget( self.ml_v_canvas, 2, 2 )
+
+        """construct the 3d viewer window with pyqtgraph"""
+
+        ## test
+        p1 = pg.PlotWidget()
+
+        # try adding a 3d plot
+        self.glvw = gl.GLViewWidget()
+        z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
+        p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
+        self.glvw.addItem(p13d)
+
+        """
+            https://stackoverflow.com/questions/52704327/how-to-insert-a-3d-glviewwidget-into-a-window-containing-2d-pyqtgraph-plots
+            the PlotWidget has more aggressive default settings because it inherits from QGraphicsView" 
+            - source I have yet to understand PyQT(Graph) and OpenGL, 
+            so I'm sorry I can't say much more, but these 3 lines should solve your motivating example:
+        """
+        p1.sizeHint = lambda: pg.QtCore.QSize(100, 100)
+        self.glvw.sizeHint = lambda: pg.QtCore.QSize(100, 100)
+        self.glvw.setSizePolicy(p1.sizePolicy())
+
+        # append the 3d plot to the layout
+        Overall_Layout.addWidget( self.glvw, 2, 2 )
 
         # setup the window layout
         self.setGeometry(300, 300, 1280, 720)        # set the size of the window
@@ -655,64 +649,64 @@ class Base(QMainWindow):
         )
 
         
-        def _plot_dots(layers_array, layers_name, layers_color, layers_marker, ax, xy_max):
-            """plot layers units as dots"""
-            temp = True
-            last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
+        # def _plot_dots(layers_array, layers_name, layers_color, layers_marker, ax, xy_max):
+        #     """plot layers units as dots"""
+        #     temp = True
+        #     last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
 
-            #scatter = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(30, 255, 35, 255))
+        #     #scatter = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(30, 255, 35, 255))
 
-            for layer, name, color_in, marker in zip(layers_array, layers_name, layers_color, layers_marker):
-                line_x, line_y, line_z = [], [], []
-                color_count = 0
+        #     for layer, name, color_in, marker in zip(layers_array, layers_name, layers_color, layers_marker):
+        #         line_x, line_y, line_z = [], [], []
+        #         color_count = 0
 
-                for j in layer:
-                    my_x, my_y, my_z = [], [], []
-                    temp_list_l = []
+        #         for j in layer:
+        #             my_x, my_y, my_z = [], [], []
+        #             temp_list_l = []
 
-                    for k in j[0]:
-                        k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
-                        my_x += k
+        #             for k in j[0]:
+        #                 k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
+        #                 my_x += k
 
-                    line_x.append([k[0], k[-1]])
+        #             line_x.append([k[0], k[-1]])
 
-                    for l in j[1]:
-                        l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
-                        my_y += l
-                        temp_list_l.append(l[0])
+        #             for l in j[1]:
+        #                 l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
+        #                 my_y += l
+        #                 temp_list_l.append(l[0])
 
-                    line_y.append([temp_list_l[0], temp_list_l[-1]])
+        #             line_y.append([temp_list_l[0], temp_list_l[-1]])
 
-                    for k in j[2]:
-                        my_z += k
+        #             for k in j[2]:
+        #                 my_z += k
 
-                    line_z.append([k[0], k[-1]])
+        #             line_z.append([k[0], k[-1]])
 
-                    if color_in == 'rgb':
-                        color = color_in[color_count]
-                        color_count += 1
-                    else:
-                        color = color_in
+        #             if color_in == 'rgb':
+        #                 color = color_in[color_count]
+        #                 color_count += 1
+        #             else:
+        #                 color = color_in
 
                     
 
-                    ax.scatter3d(my_x, my_z, my_y, c=color, marker=marker)
-                    # # adding spots to the scatter plot
-                    # scatter.addPoints(x_data, y_data)
+        #             ax.scatter3d(my_x, my_z, my_y, c=color, marker=marker)
+        #             # # adding spots to the scatter plot
+        #             # scatter.addPoints(x_data, y_data)
             
-                    # # add item to plot window
-                    # # adding scatter plot item to the plot window
-                    # plot.addItem(scatter)
+        #             # # add item to plot window
+        #             # # adding scatter plot item to the plot window
+        #             # plot.addItem(scatter)
 
-        #_plot_dots(self.tf_model.layers_array, self.tf_model.layers_name, self.tf_model.layers_color, self.tf_model.layers_marker, self.ml_v_canvas.axes, self.tf_model.xy_max)
+        # #_plot_dots(self.tf_model.layers_array, self.tf_model.layers_name, self.tf_model.layers_color, self.tf_model.layers_marker, self.ml_v_canvas.axes, self.tf_model.xy_max)
 
-        #self.ml_v.plot( self.tf_model. )
+        # #self.ml_v.plot( self.tf_model. )
 
-            # adjust the size of the tensor
-            #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
+        #     # adjust the size of the tensor
+        #     #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
 
-        # except Exception as e:
-        #     print(f"Error when initializing the TFLiteInterface {e}")
+        # # except Exception as e:
+        # #     print(f"Error when initializing the TFLiteInterface {e}")
 
     def set_plotdata(self, name, data_x, data_y, auto_scale=True) -> None:
         """
@@ -728,7 +722,7 @@ class Base(QMainWindow):
 
             # if the name is not in the self.traces dictionary, then create a new plot
             if name == 'amplitude':
-                self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
+                self.traces[name] = self.amplitude_canvas.plot(pen=pg.mkPen({'color': "#3736FF"}), width=3)
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
                 self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
 
@@ -739,7 +733,7 @@ class Base(QMainWindow):
                     self.amplitude_canvas.setAspectLocked(lock=False)  
 
             elif name == 'amplitude2':
-                self.traces[name] = self.amplitude_canvas.plot(pen='c', width=3)
+                self.traces[name] = self.amplitude_canvas.plot(pen=pg.mkPen({'color': "#3736FF"}), width=3) # "c" pg.mkPen({'color': "#3736FF"})
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
                 self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
             
@@ -750,7 +744,7 @@ class Base(QMainWindow):
                     self.amplitude_canvas.setAspectLocked(lock=False)  
 
             elif name == 'fft':
-                self.traces[name] = self.fft_canvas.plot(pen=pg.mkPen({'color': "#ff2a00"}), width=3)
+                self.traces[name] = self.fft_canvas.plot(pen=pg.mkPen({'color': "#FF5349"}), width=3) # #ff2a00
                 self.fft_canvas.setYRange(0, 250, padding=0)
                 self.fft_canvas.setXRange(0, int(self.audio_handler.SAMPLE_RATE/2), padding=0.005)
                 
@@ -789,6 +783,37 @@ class Base(QMainWindow):
             self.wave_x = list(range(len(self.simplified_data)))#list(range(len(self.source)))
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
+
+    def mel_spectrogram(self):
+        """
+            Function: mel_spectrogram
+            Description: calculate the mel spectrogram
+        """
+
+        # calculate the mel spectrogram
+        self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=config.SAMPLE_RATE, n_mels=128, fmax=8000)
+        self.mel_spectrogram_data = librosa.power_to_db(self.mel_spectrogram_data)
+
+        # set the mel spectrogram data
+        self.mel_spectrogram_x = list(range(len(self.mel_spectrogram_data[0])))
+        self.mel_spectrogram_y = self.mel_spectrogram_data
+
+    # function that takes in audio data and erturns mel spectrogram
+    def get_mel_spectrogram(self, audio_data):
+        """
+            Function: get_mel_spectrogram
+            Description: calculate the mel spectrogram
+        """
+
+        # calculate the mel spectrogram
+        mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=config.SAMPLE_RATE, n_mels=128, fmax=8000)
+        mel_spectrogram_data = librosa.power_to_db(mel_spectrogram_data)
+
+        # set the mel spectrogram data
+        mel_spectrogram_x = list(range(len(mel_spectrogram_data[0])))
+        mel_spectrogram_y = mel_spectrogram_data
+
+        return mel_spectrogram_x, mel_spectrogram_y
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
@@ -829,16 +854,63 @@ class Base(QMainWindow):
                 self.spectrogram_img_array[-1:] = psd[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
                 self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
 
-                # # update the mel spectrogram
-                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+                """mel spectrogram""" 
+                # #n_fft was 2048, hop len 512
+                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_mels=128, fmax=8000, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
 
                 # # convert to dB scale
                 # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
+                # #mel_spec = mel_spec.flatten()
+
+                # # 
+                # mel_spec = np.expand_dims(mel_spec, axis=0)
+                # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
                 # #mel_spec = 20 * np.log10(mel_spec)
+
+
+                # # broadcast mel_spec into mel_spectrogram_img_array and flattern array
+                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
+                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
+
+
+
+
+
+                # fetch mel spectrogram data
+                #mel_spectrogram_x, mel_spectrogram_y = self.get_mel_spectrogram(self.source[len(self.source)-1])
+
+                # use spec and calculate the mel spectrogram
+                
+
+
+
+
+
+                # update the mel spectrogram via 
+
+                # #n_fft was 2048, hop len 512
+                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=200, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
+
+                # # convert to dB scale
+                # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
+                # #mel_spec = mel_spec.flatten()
+
+                # # 
+                # mel_spec = np.expand_dims(mel_spec, axis=0)
+                # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
+                # #mel_spec = 20 * np.log10(mel_spec)
+
+
+                # # broadcast mel_spec into mel_spectrogram_img_array and flattern array
+                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
+                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
+
 
                 # # roll down one and replace leading edge with new data
                 # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
-                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # #self.mel_spectrogram_img_array[-1:] = mel_spec#mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
                 # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
 
     def update_console(self):
@@ -927,35 +999,33 @@ def execute():
 
     print( "execute() -> on -> OS =", os.name )
 
-    # detect if the app is running on the NT kernal if so we are on windows baby!
+    # detect if the app is running on the NT kernel if so we are on windows baby!
     if os.name.lower() == "nt":
         myappid = u'pyqt5.mlsecs.' + str(__version__) # arbitrary string
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid) # adjust the app id of windows to the correct app id
 
     app = QApplication(sys.argv) # run the q application by passing in any system arguments through from the script
     
-    # dark theme
+    # this section of code changes the app style to fusion i.e. dark theme and overrides the pallet to dark colours
     app.setStyle("Fusion")
-
-    # override the pallet to darker
     palette = QPalette()
-    palette.setColor(QPalette.Window, QtGui.QColor(53,53,53))
+    palette.setColor(QPalette.Window, QtGui.QColor(0,0,0)) # 53
     palette.setColor(QPalette.WindowText, QtCore.Qt.white)
-    palette.setColor(QPalette.Base, QtGui.QColor(15,15,15))
-    palette.setColor(QPalette.AlternateBase, QtGui.QColor(53,53,53))
+    palette.setColor(QPalette.Base, QtGui.QColor(0,0,0)) # 15
+    palette.setColor(QPalette.AlternateBase, QtGui.QColor(20,20,20)) # 53
     palette.setColor(QPalette.ToolTipBase, QtCore.Qt.white)
     palette.setColor(QPalette.ToolTipText, QtCore.Qt.white)
     palette.setColor(QPalette.Text, QtCore.Qt.white)
-    palette.setColor(QPalette.Button, QtGui.QColor(53,53,53))
+    palette.setColor(QPalette.Button, QtGui.QColor(20,20,20)) # 53
     palette.setColor(QPalette.ButtonText, QtCore.Qt.white)
-    palette.setColor(QPalette.BrightText, QtCore.Qt.red)
-         
-    palette.setColor(QPalette.Highlight, QtGui.QColor(142,45,197).lighter())
+    palette.setColor(QPalette.BrightText, QtCore.Qt.red) 
+    palette.setColor(QPalette.Highlight, QtGui.QColor(103,119,204).lighter()) # 142,45,197
     palette.setColor(QPalette.HighlightedText, QtCore.Qt.black)
     app.setPalette(palette)
 
-    baseObject = Base() # create a new instance of base class which will contrain our GUI information    
-    sys.exit(app.exec_()) # exit the python code if the app has recieved the exit code status
+    # create the main window
+    baseObject = ApplicationWindow() # create a new instance of the application window
+    sys.exit(app.exec_()) # exit the python code if the app has received the exit code status
 
 """
     Execution Entry Point

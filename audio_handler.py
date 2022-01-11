@@ -6,7 +6,6 @@ import config # import our custom config file
 import pyaudio # to receive audio
 import librosa # to extract features
 import numpy as np # to handle arrays
-#import time # to handle time
 
 class AudioHandler(object):
     """class that handles audio related stuff"""
