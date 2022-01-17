@@ -198,30 +198,6 @@ class ApplicationWindow(QMainWindow):
         self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
         self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
 
-        #self.w = gl.GLViewWidget()
-
-        # self.w = gl.GLViewWidget(self)
-        # #self.w.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        # #self.w.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        # #self.w.customContextMenuRequested.connect(self.showContextMenu)
- 
-
-        # # create the background grids
-        # gx = gl.GLGridItem()
-        # gx.rotate(90, 0, 1, 0)
-        # gx.translate(-10, 0, 0)
-        # self.w.addItem(gx)
-        # gy = gl.GLGridItem()
-        # gy.rotate(90, 1, 0, 0)
-        # gy.translate(0, -10, 0)
-        # self.w.addItem(gy)
-        # gz = gl.GLGridItem()
-        # gz.translate(0, 0, -10)
-        # self.w.addItem(gz)
-
-        # self.w.setWindowTitle('pyqtgraph example: GLLinePlotItem')
-        # self.w.setGeometry(0, 110, 1920, 1080)
-
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
             [5.03830e-02, 2.98030e-02, 5.27975e-01, 1.00000e+00],
@@ -537,6 +513,27 @@ class ApplicationWindow(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
+        """construct the 3d viewer window with pyqtgraph"""
+        ## test
+        p1 = pg.PlotWidget()
+
+        # try adding a 3d plot
+        self.glvw = gl.GLViewWidget()
+        z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
+        p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
+        self.glvw.addItem(p13d)
+
+
+        """
+            https://stackoverflow.com/questions/52704327/how-to-insert-a-3d-glviewwidget-into-a-window-containing-2d-pyqtgraph-plots
+            the PlotWidget has more aggressive default settings because it inherits from QGraphicsView" 
+            - source I have yet to understand PyQT(Graph) and OpenGL, 
+            so I'm sorry I can't say much more, but these 3 lines should solve your motivating example:
+        """
+        p1.sizeHint = lambda: pg.QtCore.QSize(100, 100)
+        self.glvw.sizeHint = lambda: pg.QtCore.QSize(100, 100)
+        self.glvw.setSizePolicy(p1.sizePolicy())
+
         """Setup, GUI layout"""
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
@@ -568,31 +565,7 @@ class ApplicationWindow(QMainWindow):
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
         Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
-
-
-        """construct the 3d viewer window with pyqtgraph"""
-
-        ## test
-        p1 = pg.PlotWidget()
-
-        # try adding a 3d plot
-        self.glvw = gl.GLViewWidget()
-        z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
-        p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
-        self.glvw.addItem(p13d)
-
-        """
-            https://stackoverflow.com/questions/52704327/how-to-insert-a-3d-glviewwidget-into-a-window-containing-2d-pyqtgraph-plots
-            the PlotWidget has more aggressive default settings because it inherits from QGraphicsView" 
-            - source I have yet to understand PyQT(Graph) and OpenGL, 
-            so I'm sorry I can't say much more, but these 3 lines should solve your motivating example:
-        """
-        p1.sizeHint = lambda: pg.QtCore.QSize(100, 100)
-        self.glvw.sizeHint = lambda: pg.QtCore.QSize(100, 100)
-        self.glvw.setSizePolicy(p1.sizePolicy())
-
-        # append the 3d plot to the layout
-        Overall_Layout.addWidget( self.glvw, 2, 2 )
+        Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
 
         # setup the window layout
         self.setGeometry(300, 300, 1280, 720)        # set the size of the window

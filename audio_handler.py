@@ -4,6 +4,7 @@
 """
 import config # import our custom config file
 import pyaudio # to receive audio
+import sounddevice as sd # to play audio
 import librosa # to extract features
 import numpy as np # to handle arrays
 
@@ -122,6 +123,17 @@ class AudioHandler(object):
         """resample the data to the rate"""
         return librosa.resample(data, original_sr, target_sr)
 
+
+    def fetch_input_devices(self):
+        """fetch the input devices"""
+        
+        return sd.query_devices()
+
+if __name__ == '__main__':
+
+    # new instance of audio handler and runs fetch_input_devices
+    audio_handler = AudioHandler()
+    print(audio_handler.fetch_input_devices())
 
 # class AudioWavReader(object):
 
