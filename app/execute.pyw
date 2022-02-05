@@ -115,6 +115,29 @@ class ApplicationWindow(QMainWindow):
         # return string
         return s
 
+    def microphone_selection_changed(self, value):
+        """
+            Function: microphone_selection_changed
+            Description: invoked when the user changes the microphone selection
+        """
+        print(f"microphone selection change requested -> switching to device: {self.audio_handler.available_devices_information[value]['name']}")
+
+        if self.audio_handler is not None:
+            supported_srs = self.audio_handler.fetch_supported_sample_rates(value)
+            best_sr = supported_srs.index(self.audio_handler.available_devices_information[value]['defaultSampleRate'])
+            self.sscb.setItems( [ str(x) for x in supported_srs ] )
+            self.sscb.setCurrentIndex(best_sr)
+        else:
+            self.sscb.setItems( [ "No Audio Handler" ] )
+
+    def samplerate_selection_changed(self, value):
+        
+        if self.audio_handler is not None:
+            index = self.mscb.currentIndex()
+            supported_srs = self.audio_handler.fetch_supported_sample_rates(index)
+            print(f"microphone samplerate change requested -> switching to sr: {supported_srs[value]} on device named: {self.audio_handler.available_devices_information[index]['name']}")
+        pass
+
     def setup_user_interface(self) -> None:
         """
             Function: setup_user_interface()
@@ -138,9 +161,7 @@ class ApplicationWindow(QMainWindow):
         self.mscb_label.setText( "Target Microphone:" )
 
         self.mscb = pg.ComboBox()
-        #items = {'a': 1, 'b': 2, 'c': 3}
-        #self.mscb.setItems(items)
-        #self.mscb.setValue(1)
+        self.mscb.currentIndexChanged.connect(self.microphone_selection_changed)
 
         """Samplerate Selection ComboBox"""
         # label
@@ -148,6 +169,7 @@ class ApplicationWindow(QMainWindow):
         self.sscb_label.setText( "Target Samplerate:" )
 
         self.sscb = pg.ComboBox()
+        self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
         #items = {'a': 1, 'b': 2, 'c': 3}
         #self.sscb.setItems(items)
         #self.sscb.setValue(1)
@@ -569,7 +591,7 @@ class ApplicationWindow(QMainWindow):
 
         # setup the window layout
         self.setGeometry(300, 300, 1280, 720)        # set the size of the window
-        self.setWindowTitle('multi-label sound event classification system'.upper())              # set window title Audio.To.SpectroGraph
+        self.setWindowTitle('audio signal analysis classification with neural networks'.upper())              # set window title Audio.To.SpectroGraph # multi-label sound event classification system
         self.setWindowIcon(QIcon(os.path.join( root_dir_path, 'icon.png' )))       # set window icon
 
         # display the window
@@ -587,7 +609,10 @@ class ApplicationWindow(QMainWindow):
             self.audio_handler = audio.AudioHandler()
 
             self.mscb.setItems( [ f"{item['name']}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
-            self.sscb.setItems( [ f"{int(item['default_samplerate'])}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
+ 
+
+            
+            #self.sscb.setItems( [ f"{int(item['defaultSampleRate'])}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
 
             # https://www.tutorialspoint.com/pyqt/pyqt_qfiledialog_widget.htm
 

@@ -4,9 +4,10 @@
 """
 import config # import our custom config file
 import pyaudio # to receive audio
-import sounddevice as sd # to play audio
 import librosa # to extract features
 import numpy as np # to handle arrays
+import sounddevice as sd
+
 
 class AudioHandler(object):
     """class that handles audio related stuff"""
@@ -16,10 +17,6 @@ class AudioHandler(object):
             initialize the audio handler
         """
         print( "Initializing audio handler..." )
-
-        print( "Fetching input devices..." )
-        self.available_devices_information = self.fetch_input_devices()
-        print( "Fetched input devices." )
 
         # initialize the pyaudio object properties
         self.FORMAT = config.FORMAT
@@ -37,8 +34,13 @@ class AudioHandler(object):
         # used by the spectrograph
         self.np_buffer = np.arange(0,0, 2)
 
-        self.p = None # reference to pyaudio object
+         # initialize the pyaudio object
+        self.p = pyaudio.PyAudio()#None # reference to pyaudio object
         self.stream = None # reference to pyaudio stream
+
+        print( "Fetching input devices..." )
+        self.available_devices_information = self.fetch_input_devices()
+        print( "Fetched input devices." )
 
         print( "Audio handler initialized." )
 
@@ -48,7 +50,7 @@ class AudioHandler(object):
         print( "Starting audio stream..." )
 
         # initialize the pyaudio object
-        self.p = pyaudio.PyAudio()
+        #self.p = pyaudio.PyAudio()
 
         # open the stream
         self.stream = self.p.open(
@@ -134,21 +136,56 @@ class AudioHandler(object):
             adjusts the information given to always provide a list of devices in a form of a dict
             
         """
-        input_device_information = sd.query_devices(kind="input")
+        # input_device_information = sd.query_devices(kind="input")
 
-        if type(input_device_information) == dict: # we only have 1 device
-            return [input_device_information]
-        elif type(input_device_information) == sd.DeviceList:
-            return list(input_device_information)
+        # if type(input_device_information) == dict: # we only have 1 device
+        #     return [input_device_information]
+        # elif type(input_device_information) == sd.DeviceList:
+        #     return list(input_device_information)
+
+        # get host api information
+        info = self.p.get_host_api_info_by_index(0)
+
+        # get the number of devices from the host api
+        numdevices = info.get('deviceCount')
+
+        # create a list of devices
+        devices = [ self.p.get_device_info_by_host_api_device_index(0, i) for i in range(0, numdevices) if (self.p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0 ]
+        return devices
+
+    def fetch_supported_sample_rates(self, device_id:int) -> list:
+
+        supported = []
+        devinfo = self.p.get_device_info_by_index(device_id)
+        for sr in config.SAMPLE_RATES:
+            #devinfo = self.p.get_device_info_by_host_api_device_index(0, device_id)
+            #print(f"{devinfo.get('name')} {sr} {self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32)}")
+            
+            # if the format is supported, add it to the list
+            if self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32) is True:
+                supported.append(sr)
+            
+        return supported   
 
 
 if __name__ == '__main__':
 
     # new instance of audio handler and runs fetch_input_devices
     audio_handler = AudioHandler()
+    for item in audio_handler.available_devices_information:
+        print(item["name"])
+    #print(audio_handler.fetch_supported_sample_rates())
 
-    for device in audio_handler.available_devices_information:
-        print(f"{device['name']} {device['default_samplerate']} max channels {device['max_input_channels']} {device['hostapi']} :: {device}")
+    # info = audio_handler.p.get_host_api_info_by_index(0)
+    # numdevices = info.get('deviceCount')
+    # for i in range(0, numdevices):
+    #     if (audio_handler.p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
+    #         print ("Input Device id ", i, " - ", audio_handler.p.get_device_info_by_host_api_device_index(0, i).get('name'))
+    #         print(audio_handler.fetch_supported_sample_rates(i),"\n\n")
+
+
+    # for device in audio_handler.available_devices_information:
+    #     print(f"{device['name']} {device['default_samplerate']} max channels {device['max_input_channels']} {device['hostapi']} :: {device}")
 
     # print(type(input_device_information) == sd.DeviceList,input_device_information[0])
 
