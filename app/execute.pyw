@@ -123,12 +123,12 @@ class ApplicationWindow(QMainWindow):
         #self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
         # add the key_in_augmented_intelligence function to the key_in_button
-        key_in_button = QAction('Activate AI', self)
+        key_in_button = QAction('Attach AI', self)
         key_in_button.setShortcut('Ctrl+Q')
         key_in_button.triggered.connect(self.key_in_augmented_intelligence)
 
         # add the key_out_augmented_intelligence function to the key_in_button
-        key_out_button = QAction('Deactivate AI', self)
+        key_out_button = QAction('Detach AI', self)
         key_out_button.setShortcut('Ctrl+W')
         key_out_button.triggered.connect(self.key_out_augmented_intelligence) 
 
@@ -138,9 +138,9 @@ class ApplicationWindow(QMainWindow):
         self.mscb_label.setText( "Target Microphone:" )
 
         self.mscb = pg.ComboBox()
-        items = {'a': 1, 'b': 2, 'c': 3}
-        self.mscb.setItems(items)
-        self.mscb.setValue(1)
+        #items = {'a': 1, 'b': 2, 'c': 3}
+        #self.mscb.setItems(items)
+        #self.mscb.setValue(1)
 
         """Samplerate Selection ComboBox"""
         # label
@@ -148,9 +148,9 @@ class ApplicationWindow(QMainWindow):
         self.sscb_label.setText( "Target Samplerate:" )
 
         self.sscb = pg.ComboBox()
-        items = {'a': 1, 'b': 2, 'c': 3}
-        self.sscb.setItems(items)
-        self.sscb.setValue(1)
+        #items = {'a': 1, 'b': 2, 'c': 3}
+        #self.sscb.setItems(items)
+        #self.sscb.setValue(1)
 
         """Master Control Bar"""
         # add the buttons to the toolbar
@@ -585,6 +585,13 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize the audio handler object and start the audio stream
         try:
             self.audio_handler = audio.AudioHandler()
+
+            self.mscb.setItems( [ f"{item['name']}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
+            self.sscb.setItems( [ f"{int(item['default_samplerate'])}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
+
+            # https://www.tutorialspoint.com/pyqt/pyqt_qfiledialog_widget.htm
+
+            # start the audio stream
             self.audio_handler.start()
         except Exception as e:
             print(f"Error when initializing and starting audio handler {e}")
@@ -611,15 +618,15 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize an instance of the tf_interface
         #try:
 
-        # initialize the tf_interface
-        self.tf_model = tf_interface.TFLiteInterface(
-            os.path.join( 
-                root_dir_path, 
-                'tf_models', 
-                'yamnet_classification_1.tflite'
-            ),
-            #24#self.audio_handler.np_buffer.size # size of our waveform
-        )
+        # # initialize the tf_interface
+        # self.tf_model = tf_interface.TFLiteInterface(
+        #     os.path.join( 
+        #         root_dir_path, 
+        #         'tf_models', 
+        #         'yamnet_classification_1.tflite'
+        #     ),
+        #     #24#self.audio_handler.np_buffer.size # size of our waveform
+        # )
 
         
         # def _plot_dots(layers_array, layers_name, layers_color, layers_marker, ax, xy_max):
@@ -911,20 +918,20 @@ class ApplicationWindow(QMainWindow):
  
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
+        pass
+        # try:
+        #     if self.tf_model is not None:
+        #         # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
+        #         new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
+        #         #print(type(new_buffer), new_buffer.shape)
+        #         #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
 
-        try:
-            if self.tf_model is not None:
-                # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
-                new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
-                #print(type(new_buffer), new_buffer.shape)
-                #new_buffer = np.cast(new_buffer, dtype=np.float32) # convert to float32
-
-                # shove in our wave form into the TF Lite Model
-                #self.tf_interface.resize_tensor_input(new_buffer.size)
-                self.tf_model.feed(new_buffer)
-                print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
-        except Exception:
-            print(f"Error performing TF prediction {traceback.format_exc()}")
+        #         # shove in our wave form into the TF Lite Model
+        #         #self.tf_interface.resize_tensor_input(new_buffer.size)
+        #         self.tf_model.feed(new_buffer)
+        #         print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
+        # except Exception:
+        #     print(f"Error performing TF prediction {traceback.format_exc()}")
 
         # # make sure we have data
         # if len(self.source) > 0:

@@ -7,120 +7,120 @@ import tensorflow as tf
 import numpy as np
 import utility
 
+#region layer viewer functions
+# def _model2layer(model):
+#     """fatch layers name and shape from model"""
+#     layers = []
 
-def _model2layer(model):
-    """fatch layers name and shape from model"""
-    layers = []
+#     for i in model.layers:
+#         name = str(i.with_name_scope).split('.')[-1][:-3]
+#         if name == 'InputLayer':
+#             shape = i.input_shape[0][1:]
+#         elif name == 'MaxPooling2D':
+#             shape = i.input_shape[1:]
+#         else:
+#             shape = i.output_shape[1:]
+#         layers.append( (tuple(shape), name) )
 
-    for i in model.layers:
-        name = str(i.with_name_scope).split('.')[-1][:-3]
-        if name == 'InputLayer':
-            shape = i.input_shape[0][1:]
-        elif name == 'MaxPooling2D':
-            shape = i.input_shape[1:]
-        else:
-            shape = i.output_shape[1:]
-        layers.append( (tuple(shape), name) )
+#     return layers
 
-    return layers
+# def _layer(shape, name):
+#     """add more feature on layers"""
+#     lay_shape = None
+#     lay_name = None
+#     lay_color = None
+#     lay_marker = None
 
-def _layer(shape, name):
-    """add more feature on layers"""
-    lay_shape = None
-    lay_name = None
-    lay_color = None
-    lay_marker = None
+#     if len(shape) == 1:
+#         lay_shape = (shape[0], 1, 1)
+#     elif len(shape) == 2:
+#         lay_shape = (shape[0], shape[1], 1)
+#     else:
+#         if name == 'MaxPooling2D' or name == 'AveragePooling2D':
+#             lay_shape = (shape[0], shape[1], 1)
+#         else:
+#             lay_shape = shape
 
-    if len(shape) == 1:
-        lay_shape = (shape[0], 1, 1)
-    elif len(shape) == 2:
-        lay_shape = (shape[0], shape[1], 1)
-    else:
-        if name == 'MaxPooling2D' or name == 'AveragePooling2D':
-            lay_shape = (shape[0], shape[1], 1)
-        else:
-            lay_shape = shape
+#     lay_name = name
 
-    lay_name = name
+#     if len(lay_shape) == 3 and lay_shape[-1] == 3:
+#         lay_color = 'rgb'
+#         lay_marker = 'o'
+#     else:
+#         if lay_name == 'InputLayer':
+#             lay_color = 'r'
+#             lay_marker = 'o'
+#         elif lay_name == 'Conv2D':
+#             lay_color = 'y'
+#             lay_marker = '^'
+#         elif lay_name == 'MaxPooling2D' or lay_name == 'AveragePooling2D':
+#             lay_color = 'c'
+#             lay_marker = '.'
+#         else:
+#             lay_color = 'g'
+#             lay_marker = '.'
 
-    if len(lay_shape) == 3 and lay_shape[-1] == 3:
-        lay_color = 'rgb'
-        lay_marker = 'o'
-    else:
-        if lay_name == 'InputLayer':
-            lay_color = 'r'
-            lay_marker = 'o'
-        elif lay_name == 'Conv2D':
-            lay_color = 'y'
-            lay_marker = '^'
-        elif lay_name == 'MaxPooling2D' or lay_name == 'AveragePooling2D':
-            lay_color = 'c'
-            lay_marker = '.'
-        else:
-            lay_color = 'g'
-            lay_marker = '.'
+#     return {'shape': lay_shape, 'name': lay_name, 'color': lay_color, 'marker': lay_marker}
 
-    return {'shape': lay_shape, 'name': lay_name, 'color': lay_color, 'marker': lay_marker}
+# def _shape2array(shape, layers_len, xy_max):
+#     """create shape to array/matrix"""
 
-def _shape2array(shape, layers_len, xy_max):
-    """create shape to array/matrix"""
+#     shape = np.asarray(shape)
 
-    shape = np.asarray(shape)
+#     x = shape[0]
+#     y = shape[1]
+#     z = shape[2]
 
-    x = shape[0]
-    y = shape[1]
-    z = shape[2]
+#     single_layer = []
 
-    single_layer = []
+#     if xy_max[0] < x:
+#         xy_max[0] = x
+#     if xy_max[1] < y:
+#         xy_max[1] = y
 
-    if xy_max[0] < x:
-        xy_max[0] = x
-    if xy_max[1] < y:
-        xy_max[1] = y
+#     for k in range(z):
+#         arr_x, arr_y, arr_z = [], [], []
 
-    for k in range(z):
-        arr_x, arr_y, arr_z = [], [], []
+#         for i in range(y):
+#             ox = [j for j in range(x)]
+#             arr_x.append(ox)
 
-        for i in range(y):
-            ox = [j for j in range(x)]
-            arr_x.append(ox)
+#         for i in range(y):
+#             oy = [j for j in (np.ones(x, dtype=int) * i)]
+#             arr_y.append(oy)
 
-        for i in range(y):
-            oy = [j for j in (np.ones(x, dtype=int) * i)]
-            arr_y.append(oy)
+#         for i in range(y):
+#             oz = [j for j in (np.ones(y, dtype=int) * layers_len)]
+#             arr_z.append(oz)
 
-        for i in range(y):
-            oz = [j for j in (np.ones(y, dtype=int) * layers_len)]
-            arr_z.append(oz)
+#         layers_len += 2
+#         single_layer.append([arr_x, arr_y, arr_z])
 
-        layers_len += 2
-        single_layer.append([arr_x, arr_y, arr_z])
+#     layers_len += 4
 
-    layers_len += 4
-
-    return single_layer, layers_len, xy_max
+#     return single_layer, layers_len, xy_max
 
 
-            # if self.connection:
-            #     if name == 'Dense' or name == 'Flatten':
-            #         for c in line_z:
-            #             a, b, c = line_x[0], line_y[0], c
-            #             if temp:
-            #                 temp = False
-            #                 last_a, last_b, last_c = a, b, c
-            #                 continue
+#             # if self.connection:
+#             #     if name == 'Dense' or name == 'Flatten':
+#             #         for c in line_z:
+#             #             a, b, c = line_x[0], line_y[0], c
+#             #             if temp:
+#             #                 temp = False
+#             #                 last_a, last_b, last_c = a, b, c
+#             #                 continue
 
-            #             if color_in == 'rgb':
-            #                 color = color_in[color_count]
-            #                 color_count += 1
+#             #             if color_in == 'rgb':
+#             #                 color = color_in[color_count]
+#             #                 color_count += 1
 
-            #             else:
-            #                 color = color_in
+#             #             else:
+#             #                 color = color_in
 
-            #             self._dense(ax, a[0], a[1], b[0], b[1], last_a[0], last_a[1], last_b[0], last_b[1], c[0],
-            #                         last_c[0], c=color)
-            #             last_a, last_b, last_c = a, b, c
-
+#             #             self._dense(ax, a[0], a[1], b[0], b[1], last_a[0], last_a[1], last_b[0], last_b[1], c[0],
+#             #                         last_c[0], c=color)
+#             #             last_a, last_b, last_c = a, b, c
+#endregion
 class TFInterface:
     """
         Class name: TFInterface
@@ -216,27 +216,27 @@ class TFLiteInterface:
         self.layers_color = []
         self.xy_max = [0, 0]
 
-        #https://stackoverflow.com/questions/62276989/tflite-can-i-get-graph-layer-sequence-information-directly-through-the-tf2-0-a
-        for layer in self.model.get_tensor_details():
-            #print(layer['shape'],'\t',layer['name'])
+        # #https://stackoverflow.com/questions/62276989/tflite-can-i-get-graph-layer-sequence-information-directly-through-the-tf2-0-a
+        # for layer in self.model.get_tensor_details():
+        #     #print(layer['shape'],'\t',layer['name'])
 
-            #list_ = list(map(lambda x: x, layer['shape']))
+        #     #list_ = list(map(lambda x: x, layer['shape']))
 
-            if len(layer['shape']) > 0:
-                #print(list(map(lambda x: x, layer['shape']))[0])
+        #     if len(layer['shape']) > 0:
+        #         #print(list(map(lambda x: x, layer['shape']))[0])
 
-                layer_dict = _layer(layer['shape'], layer['name'])
-                single_layer, layers_len, xy_max = _shape2array(layer_dict['shape'], self.layers_len, self.xy_max)
+        #         layer_dict = _layer(layer['shape'], layer['name'])
+        #         single_layer, layers_len, xy_max = _shape2array(layer_dict['shape'], self.layers_len, self.xy_max)
 
-                self.layers_len = layers_len
-                self.xy_max = xy_max
+        #         self.layers_len = layers_len
+        #         self.xy_max = xy_max
 
-                self.layers_array.append(single_layer)
-                self.layers_name.append(layer_dict['name'])
-                self.layers_color.append(layer_dict['color'])
-                self.layers_marker.append(layer_dict['marker'])
+        #         self.layers_array.append(single_layer)
+        #         self.layers_name.append(layer_dict['name'])
+        #         self.layers_color.append(layer_dict['color'])
+        #         self.layers_marker.append(layer_dict['marker'])
 
-        print(len(self.layers_array))
+        # print(len(self.layers_array))
 
             # print("\nLayer Name: {}".format(layer['name']))
             # print("\tIndex: {}".format(layer['index']))

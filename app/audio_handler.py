@@ -17,6 +17,10 @@ class AudioHandler(object):
         """
         print( "Initializing audio handler..." )
 
+        print( "Fetching input devices..." )
+        self.available_devices_information = self.fetch_input_devices()
+        print( "Fetched input devices." )
+
         # initialize the pyaudio object properties
         self.FORMAT = config.FORMAT
         self.CHANNELS = config.CHANNELS
@@ -123,17 +127,38 @@ class AudioHandler(object):
         """resample the data to the rate"""
         return librosa.resample(data, original_sr, target_sr)
 
+    def fetch_input_devices(self) -> list:
+        """
+            fetch the input devices
+            invokes sd.query_devices(kind="input")
+            adjusts the information given to always provide a list of devices in a form of a dict
+            
+        """
+        input_device_information = sd.query_devices(kind="input")
 
-    def fetch_input_devices(self):
-        """fetch the input devices"""
-        
-        return sd.query_devices()
+        if type(input_device_information) == dict: # we only have 1 device
+            return [input_device_information]
+        elif type(input_device_information) == sd.DeviceList:
+            return list(input_device_information)
+
 
 if __name__ == '__main__':
 
     # new instance of audio handler and runs fetch_input_devices
     audio_handler = AudioHandler()
-    print(audio_handler.fetch_input_devices())
+
+    for device in audio_handler.available_devices_information:
+        print(f"{device['name']} {device['default_samplerate']} max channels {device['max_input_channels']} {device['hostapi']} :: {device}")
+
+    # print(type(input_device_information) == sd.DeviceList,input_device_information[0])
+
+    # if type(input_device_information) == dict: # we only have 1 device
+    #     print(f"only 1 device found {input_device_information['name']} {input_device_information['default_samplerate']} max channels {input_device_information['max_input_channels']}")
+    # elif type(input_device_information) == sd.DeviceList:
+    #     for device in input_device_information:
+    #         print(f"{device['name']} {device['default_samplerate']} max channels {device['max_input_channels']}")
+
+    #print(audio_handler.fetch_input_devices())
 
 # class AudioWavReader(object):
 
