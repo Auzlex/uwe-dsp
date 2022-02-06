@@ -118,6 +118,17 @@ class ApplicationWindow(QMainWindow):
         # return string
         return s
 
+    def populate_microphone_sample_rates(self):
+
+        index = self.mscb.currentIndex()
+        selected_device_id = self.audio_handler.available_devices_information[index]['index']
+
+        supported_srs = self.audio_handler.fetch_supported_sample_rates(selected_device_id)
+        best_sr = supported_srs.index(int(self.audio_handler.available_devices_information[index]['defaultSampleRate']))
+        
+        self.sscb.setItems( [ str(x) for x in supported_srs ] )
+        self.sscb.setCurrentIndex(best_sr)
+
     def microphone_selection_changed(self, value):
         """
             Function: microphone_selection_changed
@@ -128,17 +139,20 @@ class ApplicationWindow(QMainWindow):
         if self.audio_handler is not None:
 
             # disconnect the sample rate change listener to prevent audio handler and devices spamming new stream creations
-            self.sscb.currentIndexChanged.disconnect(self.samplerate_selection_changed)
+            try:
+                self.sscb.currentIndexChanged.disconnect(self.samplerate_selection_changed)
+            except Exception as e:
+                print(f"disconnect error: {e}")
+
+            self.populate_microphone_sample_rates()
 
             selected_device_id = self.audio_handler.available_devices_information[value]['index']
-
             supported_srs = self.audio_handler.fetch_supported_sample_rates(selected_device_id)
-            #print(f"{supported_srs}, b: {int(self.audio_handler.available_devices_information[value]['defaultSampleRate'])}")
             best_sr = supported_srs.index(int(self.audio_handler.available_devices_information[value]['defaultSampleRate']))
             
-            #print(f"{supported_srs}, b: {best_sr}")
-            self.sscb.setItems( [ str(x) for x in supported_srs ] )
-            self.sscb.setCurrentIndex(best_sr)
+            # #print(f"{supported_srs}, b: {best_sr}")
+            # self.sscb.setItems( [ str(x) for x in supported_srs ] )
+            # self.sscb.setCurrentIndex(best_sr)
 
             # reconnect the sample rate change listener so if a user wants to change they can do
             self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
@@ -646,6 +660,8 @@ class ApplicationWindow(QMainWindow):
             # populate the combox box with the available audio devices
             self.mscb.setItems( [ f"{item['name']}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
  
+            self.populate_microphone_sample_rates()
+
             # connect the functions to listen for changes in the audio device selection
             self.mscb.currentIndexChanged.connect(self.microphone_selection_changed)
             self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
