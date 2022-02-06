@@ -2,12 +2,11 @@
 """
     import modules
 """
+import re
 import config # import our custom config file
 import pyaudio # to receive audio
 import librosa # to extract features
 import numpy as np # to handle arrays
-import sounddevice as sd
-
 
 class AudioHandler(object):
     """class that handles audio related stuff"""
@@ -44,22 +43,40 @@ class AudioHandler(object):
 
         print( "Audio handler initialized." )
 
-    def start(self) -> None:
+    # def start(self) -> None:
+    #     """start the audio stream"""
+
+    #     print( "Starting audio stream..." )
+
+    #     # initialize the pyaudio object
+    #     #self.p = pyaudio.PyAudio()
+
+    #     # open the stream
+    #     self.stream = self.p.open(
+    #         format=self.FORMAT,
+    #         channels=self.CHANNELS,
+    #         rate=self.SAMPLE_RATE,
+    #         input=True,
+    #         stream_callback=self.callback,
+    #         frames_per_buffer=self.CHUNK
+    #     )
+
+    #     print( "Audio stream started." )
+
+    def start(self, device_index:int=None, format=config.FORMAT, channels=config.CHANNELS, rate=config.SAMPLE_RATE, frames_per_buffer=config.CHUNK_SIZE  ) -> None:
         """start the audio stream"""
 
         print( "Starting audio stream..." )
 
-        # initialize the pyaudio object
-        #self.p = pyaudio.PyAudio()
-
         # open the stream
         self.stream = self.p.open(
-            format=self.FORMAT,
-            channels=self.CHANNELS,
-            rate=self.SAMPLE_RATE,
+            format=format,
+            channels=channels,
+            rate=rate,
             input=True,
             stream_callback=self.callback,
-            frames_per_buffer=self.CHUNK
+            frames_per_buffer=frames_per_buffer,
+            input_device_index=device_index
         )
 
         print( "Audio stream started." )
@@ -74,7 +91,7 @@ class AudioHandler(object):
         self.stream.close()
 
         # terminate the pyaudio object
-        self.p.terminate()
+        #self.p.terminate()
 
         print( "Audio stream stopped." )
 
@@ -117,13 +134,10 @@ class AudioHandler(object):
 
     def is_stream_active(self):
         """returns true if the audio stream is active"""
+        if self.stream is None:
+            return False
+
         return self.stream.is_active()
-
-    # def mainloop(self):
-    #     """main loop for the audio handler"""
-
-    #     while (self.stream.is_active()): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
-    #         time.sleep(2.0)
 
     def resample(self, data, original_sr, target_sr):
         """resample the data to the rate"""
@@ -136,13 +150,6 @@ class AudioHandler(object):
             adjusts the information given to always provide a list of devices in a form of a dict
             
         """
-        # input_device_information = sd.query_devices(kind="input")
-
-        # if type(input_device_information) == dict: # we only have 1 device
-        #     return [input_device_information]
-        # elif type(input_device_information) == sd.DeviceList:
-        #     return list(input_device_information)
-
         # get host api information
         info = self.p.get_host_api_info_by_index(0)
 
@@ -153,12 +160,12 @@ class AudioHandler(object):
         devices = [ self.p.get_device_info_by_host_api_device_index(0, i) for i in range(0, numdevices) if (self.p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0 ]
         return devices
 
-    def fetch_supported_sample_rates(self, device_id:int) -> list:
+    def fetch_supported_sample_rates(self, device_index:int) -> list:
 
         supported = []
-        devinfo = self.p.get_device_info_by_index(device_id)
+        devinfo = self.p.get_device_info_by_index(device_index)
         for sr in config.SAMPLE_RATES:
-            #devinfo = self.p.get_device_info_by_host_api_device_index(0, device_id)
+            #devinfo = self.p.get_device_info_by_host_api_device_index(0, device_index)
             #print(f"{devinfo.get('name')} {sr} {self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32)}")
             
             # if the format is supported, add it to the list
@@ -167,13 +174,29 @@ class AudioHandler(object):
             
         return supported   
 
+    def adjust_stream(self, device_index:int, sample_rate:int) -> None:
+        """adjust the stream to the device and sample rate"""
+
+        # get the device information
+        devinfo = self.p.get_device_info_by_index(device_index)
+
+        # if a stream is active stop it
+        if self.is_stream_active():
+            self.stop()
+        
+        # start a new stream on target device
+        self.start(
+            device_index=device_index,
+            rate=sample_rate,
+        )
+
 
 if __name__ == '__main__':
 
     # new instance of audio handler and runs fetch_input_devices
     audio_handler = AudioHandler()
-    for item in audio_handler.available_devices_information:
-        print(item["name"])
+    # for item in audio_handler.available_devices_information:
+    #     print(item["name"])
     #print(audio_handler.fetch_supported_sample_rates())
 
     # info = audio_handler.p.get_host_api_info_by_index(0)

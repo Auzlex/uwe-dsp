@@ -110,7 +110,10 @@ class ApplicationWindow(QMainWindow):
             s = "<font color=\'red\'>NO AUDIO HANDLER</font>"
         else:
             # get audio handler information
-            s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.SAMPLE_RATE}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.CHANNELS}</font> | chunk: <font color=\'lime\'>{self.audio_handler.CHUNK}</font>").upper()
+            if self.audio_handler.is_stream_active():
+                s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.stream._rate}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.stream._channels}</font> | chunk: <font color=\'lime\'>{self.audio_handler.stream._frames_per_buffer}</font>").upper()
+            else:
+                s = (f"<font color=\'orange\'>AWAITING AUDIO STREAM INITIALIZATION</font>").upper()
 
         # return string
         return s
@@ -127,6 +130,13 @@ class ApplicationWindow(QMainWindow):
             best_sr = supported_srs.index(self.audio_handler.available_devices_information[value]['defaultSampleRate'])
             self.sscb.setItems( [ str(x) for x in supported_srs ] )
             self.sscb.setCurrentIndex(best_sr)
+
+            # adjust the audio handler stream to new device
+            self.audio_handler.adjust_stream(value, supported_srs[best_sr])
+
+            # if self.spectrogram_img_array is not None and self.spg_canvas is not None:
+            #     self.adjust_spectrogram_scale(self.spectrogram_img, self.spectrogram_img_array, sr=supported_srs[best_sr])
+
         else:
             self.sscb.setItems( [ "No Audio Handler" ] )
 
@@ -136,7 +146,18 @@ class ApplicationWindow(QMainWindow):
             index = self.mscb.currentIndex()
             supported_srs = self.audio_handler.fetch_supported_sample_rates(index)
             print(f"microphone samplerate change requested -> switching to sr: {supported_srs[value]} on device named: {self.audio_handler.available_devices_information[index]['name']}")
-        pass
+            self.audio_handler.adjust_stream(index, supported_srs[value])
+
+    # def adjust_spectrogram_scale(self, spectrogram_target=None, spectrogram_img_array=None, sr=config.SAMPLE_RATE, chunk=config.CHUNK_SIZE):
+
+    #     # setup the correct scaling for y-axis
+    #     freq = np.arange(0,int(sr/2))
+        
+    #     # set the y-axis to the correct frequency scale
+    #     yscale = 1.0/(spectrogram_img_array.shape[1]/freq[-1])
+
+    #     # set spectrogram_img scale
+    #     spectrogram_target.scale((1./config.SAMPLE_RATE)*chunk, yscale)
 
     def setup_user_interface(self) -> None:
         """
@@ -766,16 +787,17 @@ class ApplicationWindow(QMainWindow):
         # because it handled in a separate thread and we need to synchronize it
         self.source = self.audio_handler.frame_buffer
 
-        try:
-            # we need to numpy abs, because FFT will show negative frequencies and amplitudes
-            self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
-            self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/config.SAMPLE_RATE))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/config.SAMPLE_RATE)
-        except Exception as e:
-            pass
-            #print(f"Error when calculating fft data {e}")
+        if len(self.source) > 0:
+            try:
+                # we need to numpy abs, because FFT will show negative frequencies and amplitudes
+                self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
+                self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/self.audio_handler.stream._rate))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/self.audio_handler.stream._rate)
+            except Exception as e:
+                pass
+                #print(f"Error when calculating fft data {e}")
 
         # make sure source is long enough
-        if len(self.source) > 0:
+       
             self.simplified_data = [] # our list of our simplified data
             self.negative_simplified_data = [] # our list of our simplified data
 
@@ -796,7 +818,7 @@ class ApplicationWindow(QMainWindow):
         """
 
         # calculate the mel spectrogram
-        self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=config.SAMPLE_RATE, n_mels=128, fmax=8000)
+        self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
         self.mel_spectrogram_data = librosa.power_to_db(self.mel_spectrogram_data)
 
         # set the mel spectrogram data
@@ -811,7 +833,7 @@ class ApplicationWindow(QMainWindow):
         """
 
         # calculate the mel spectrogram
-        mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=config.SAMPLE_RATE, n_mels=128, fmax=8000)
+        mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
         mel_spectrogram_data = librosa.power_to_db(mel_spectrogram_data)
 
         # set the mel spectrogram data
@@ -843,34 +865,50 @@ class ApplicationWindow(QMainWindow):
             # update spectrogram if the np buffer is greater than the chunk size
             # because if its too small its not enough for the spectrogram to render
             if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK and len(self.source) > 0:
-                #np_array = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+                #np_array = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
                 
-                # normalized, windowed frequencies in data chunk
-                spec = np.fft.rfft(self.source[len(self.source)-1])#self.audio_handler.np_buffer#np.fft.rfft(config.CHUNK_SIZE*self.win) / config.CHUNK_SIZE
+                # # # normalized, windowed frequencies in data chunk
+                # old_spec = np.fft.rfft(self.source[len(self.source)-1])#self.audio_handler.np_buffer#np.fft.rfft(config.CHUNK_SIZE*self.win) / config.CHUNK_SIZE
+
+                # # get magnitude 
+                # psd = abs(old_spec)
                 
-                # get magnitude 
-                psd = abs(spec)
+                # # convert to dB scale
+                # psd_t = 20 * np.log10(psd)
+
+                stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=None)
                 
-                # convert to dB scale
-                psd = 20 * np.log10(psd)
+                #print(config.CHUNK_SIZE,int(2048/2))
+
+                #convert to db
+                psd = librosa.amplitude_to_db(np.abs(stft))
+                psd_t = np.transpose(psd)
+                psd_t = psd_t[len(psd_t)-1]
+                #print(psd_t.shape,  self.spectrogram_img_array.shape)
+                #self.spectrogram_img.setImage(psd, autoLevels=False)
+
+                #print(self.spectrogram_img_array.shape, psd.shape, psd2.shape)
 
                 # roll down one and replace leading edge with new data
                 self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
-                self.spectrogram_img_array[-1:] = psd[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
                 self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
 
-                """mel spectrogram""" 
-                # #n_fft was 2048, hop len 512
-                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_mels=128, fmax=8000, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
+                # """mel spectrogram""" 
+                # #n_fft was 2048, hop len 512 n_mels 128
+                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, n_fft=config.CHUNK_SIZE, S=None, n_mels=128)
+                # mel_spec = librosa.amplitude_to_db(np.abs(mel_spec))
+                # mel_spec = np.transpose(mel_spec)
+                # mel_spec = mel_spec[len(mel_spec)-1]
 
-                # # convert to dB scale
-                # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
-                # #mel_spec = mel_spec.flatten()
+                # # # convert to dB scale
+                # # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
+                # # #mel_spec = mel_spec.flatten()
 
-                # # 
-                # mel_spec = np.expand_dims(mel_spec, axis=0)
-                # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
-                # #mel_spec = 20 * np.log10(mel_spec)
+                # # # 
+                # # mel_spec = np.expand_dims(mel_spec, axis=0)
+                # # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
+                # # #mel_spec = 20 * np.log10(mel_spec)
 
 
                 # # broadcast mel_spec into mel_spectrogram_img_array and flattern array
@@ -895,7 +933,7 @@ class ApplicationWindow(QMainWindow):
                 # update the mel spectrogram via 
 
                 # #n_fft was 2048, hop len 512
-                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=config.SAMPLE_RATE, S=None, n_fft=2048, hop_length=200, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
+                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, S=None, n_fft=2048, hop_length=200, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
 
                 # # convert to dB scale
                 # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
