@@ -66,7 +66,7 @@ class AudioHandler(object):
     def start(self, device_index:int=None, format=config.FORMAT, channels=config.CHANNELS, rate=config.SAMPLE_RATE, frames_per_buffer=config.CHUNK_SIZE  ) -> None:
         """start the audio stream"""
 
-        print( "Starting audio stream..." )
+        print( f"Starting audio stream..." )
 
         # open the stream
         self.stream = self.p.open(
@@ -137,7 +137,13 @@ class AudioHandler(object):
         if self.stream is None:
             return False
 
-        return self.stream.is_active()
+        status = False
+        try:
+            status = self.stream.is_active()
+        except Exception as e:
+            print(f"Error checking stream status: {e}")
+
+        return status
 
     def resample(self, data, original_sr, target_sr):
         """resample the data to the rate"""
@@ -162,15 +168,22 @@ class AudioHandler(object):
 
     def fetch_supported_sample_rates(self, device_index:int) -> list:
 
+        #print( f"Fetching supported sample rates... for device id {device_index}" )
+
         supported = []
         devinfo = self.p.get_device_info_by_index(device_index)
         for sr in config.SAMPLE_RATES:
-            #devinfo = self.p.get_device_info_by_host_api_device_index(0, device_index)
-            #print(f"{devinfo.get('name')} {sr} {self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32)}")
-            
-            # if the format is supported, add it to the list
-            if self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32) is True:
-                supported.append(sr)
+            devinfo = self.p.get_device_info_by_host_api_device_index(0, device_index)
+
+            try:
+                #print(f"{devinfo.get('name')} {sr} {self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32)}")
+                
+                # if the format is supported, add it to the list
+                if self.p.is_format_supported(sr,input_device=devinfo['index'], input_channels=devinfo['maxInputChannels'], input_format=pyaudio.paFloat32) is True:
+                    supported.append(sr)
+            except Exception as e:
+                pass
+                #print(f"{devinfo.get('name')} {sr} {e}")
             
         return supported   
 
@@ -195,8 +208,8 @@ if __name__ == '__main__':
 
     # new instance of audio handler and runs fetch_input_devices
     audio_handler = AudioHandler()
-    # for item in audio_handler.available_devices_information:
-    #     print(item["name"])
+    for item in audio_handler.available_devices_information:
+        print(item)
     #print(audio_handler.fetch_supported_sample_rates())
 
     # info = audio_handler.p.get_host_api_info_by_index(0)

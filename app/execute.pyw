@@ -111,7 +111,7 @@ class ApplicationWindow(QMainWindow):
         else:
             # get audio handler information
             if self.audio_handler.is_stream_active():
-                s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.stream._rate}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.stream._channels}</font> | chunk: <font color=\'lime\'>{self.audio_handler.stream._frames_per_buffer}</font>").upper()
+                s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.stream._rate}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.stream._channels}</font> | chunk: <font color=\'lime\'>{self.audio_handler.stream._frames_per_buffer}</font> | device_index: <font color=\'pink\'>{self.audio_handler.available_devices_information[self.mscb.currentIndex()]['index']}</font>").upper()
             else:
                 s = (f"<font color=\'orange\'>AWAITING AUDIO STREAM INITIALIZATION</font>").upper()
 
@@ -123,16 +123,28 @@ class ApplicationWindow(QMainWindow):
             Function: microphone_selection_changed
             Description: invoked when the user changes the microphone selection
         """
-        print(f"microphone selection change requested -> switching to device: {self.audio_handler.available_devices_information[value]['name']}")
+        print(f"microphone DEVICE change requested -> switching to device: {self.audio_handler.available_devices_information[value]['name']}")
 
         if self.audio_handler is not None:
-            supported_srs = self.audio_handler.fetch_supported_sample_rates(value)
-            best_sr = supported_srs.index(self.audio_handler.available_devices_information[value]['defaultSampleRate'])
+
+            # disconnect the sample rate change listener to prevent audio handler and devices spamming new stream creations
+            self.sscb.currentIndexChanged.disconnect(self.samplerate_selection_changed)
+
+            selected_device_id = self.audio_handler.available_devices_information[value]['index']
+
+            supported_srs = self.audio_handler.fetch_supported_sample_rates(selected_device_id)
+            #print(f"{supported_srs}, b: {int(self.audio_handler.available_devices_information[value]['defaultSampleRate'])}")
+            best_sr = supported_srs.index(int(self.audio_handler.available_devices_information[value]['defaultSampleRate']))
+            
+            #print(f"{supported_srs}, b: {best_sr}")
             self.sscb.setItems( [ str(x) for x in supported_srs ] )
             self.sscb.setCurrentIndex(best_sr)
 
+            # reconnect the sample rate change listener so if a user wants to change they can do
+            self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
+
             # adjust the audio handler stream to new device
-            self.audio_handler.adjust_stream(value, supported_srs[best_sr])
+            self.audio_handler.adjust_stream(selected_device_id, supported_srs[best_sr])
 
             # if self.spectrogram_img_array is not None and self.spg_canvas is not None:
             #     self.adjust_spectrogram_scale(self.spectrogram_img, self.spectrogram_img_array, sr=supported_srs[best_sr])
@@ -144,9 +156,13 @@ class ApplicationWindow(QMainWindow):
         
         if self.audio_handler is not None:
             index = self.mscb.currentIndex()
-            supported_srs = self.audio_handler.fetch_supported_sample_rates(index)
-            print(f"microphone samplerate change requested -> switching to sr: {supported_srs[value]} on device named: {self.audio_handler.available_devices_information[index]['name']}")
-            self.audio_handler.adjust_stream(index, supported_srs[value])
+            selected_device_id = self.audio_handler.available_devices_information[index]['index']
+            supported_srs = self.audio_handler.fetch_supported_sample_rates(selected_device_id)
+            print(f"SAMPLERATE change requested -> switching to sr: {supported_srs[value]} on device named: {self.audio_handler.available_devices_information[index]['name']}")
+            
+            # make sure the device id is 
+            self.audio_handler.adjust_stream(selected_device_id, supported_srs[value])
+
 
     # def adjust_spectrogram_scale(self, spectrogram_target=None, spectrogram_img_array=None, sr=config.SAMPLE_RATE, chunk=config.CHUNK_SIZE):
 
@@ -182,7 +198,6 @@ class ApplicationWindow(QMainWindow):
         self.mscb_label.setText( "Target Microphone:" )
 
         self.mscb = pg.ComboBox()
-        self.mscb.currentIndexChanged.connect(self.microphone_selection_changed)
 
         """Samplerate Selection ComboBox"""
         # label
@@ -190,7 +205,6 @@ class ApplicationWindow(QMainWindow):
         self.sscb_label.setText( "Target Samplerate:" )
 
         self.sscb = pg.ComboBox()
-        self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
         #items = {'a': 1, 'b': 2, 'c': 3}
         #self.sscb.setItems(items)
         #self.sscb.setValue(1)
@@ -620,7 +634,7 @@ class ApplicationWindow(QMainWindow):
 
         # hook events for python program out so that we can view debug information of the last 250 characters
         sys.stdout = StandardStream()
-        sys.stderr = StandardStream(True)
+        #sys.stderr = StandardStream(True)
 
         # update text timer
         self.timer.start()
@@ -629,16 +643,25 @@ class ApplicationWindow(QMainWindow):
         try:
             self.audio_handler = audio.AudioHandler()
 
+            # populate the combox box with the available audio devices
             self.mscb.setItems( [ f"{item['name']}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
  
+            # connect the functions to listen for changes in the audio device selection
+            self.mscb.currentIndexChanged.connect(self.microphone_selection_changed)
+            self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
 
+            # set the starting device to be the first found input device
+            self.mscb.setCurrentIndex(0)
+            index = self.mscb.currentIndex()
+            selected_device_id = self.audio_handler.available_devices_information[index]['index']
+
+            # this code starts the new audio stream of desired device and sample rate i.e the first one in the list
+            self.audio_handler.adjust_stream(selected_device_id, int(self.audio_handler.available_devices_information[index]['defaultSampleRate']))
             
-            #self.sscb.setItems( [ f"{int(item['defaultSampleRate'])}" for x,item in enumerate(self.audio_handler.available_devices_information)] )
-
             # https://www.tutorialspoint.com/pyqt/pyqt_qfiledialog_widget.htm
 
             # start the audio stream
-            self.audio_handler.start()
+            #self.audio_handler.start()
         except Exception as e:
             print(f"Error when initializing and starting audio handler {e}")
             logging.critical("Error: %s" % e)
@@ -711,7 +734,7 @@ class ApplicationWindow(QMainWindow):
         #             if color_in == 'rgb':
         #                 color = color_in[color_count]
         #                 color_count += 1
-        #             else:
+        #             else:selected_device_id = self.audio_handler.available_devices_information[index]['index']
         #                 color = color_in
 
                     
