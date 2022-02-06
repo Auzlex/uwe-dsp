@@ -135,7 +135,34 @@ class TFInterface:
         """
         self.model_path = model_path
         self.model = tf.keras.models.load_model(self.model_path)
-        self.model.summary()
+        self.layers = self._model2layers()
+        
+        #import json
+        #print(json.dumps(self.layers, indent=4, sort_keys=False))
+        #print("\n\n")
+        print(self.layers)
+        #self.model.summary()
+
+        #https://stackoverflow.com/questions/62276989/tflite-can-i-get-graph-layer-sequence-information-directly-through-the-tf2-0-a
+        # for layer in self.model.layers:
+        #     print(layer)
+
+
+    def _model2layers(self):
+        """fatch layers name and shape from model"""
+        layers = []
+
+        for i in self.model.layers:
+            name = str(i.with_name_scope).split('.')[-1][:-3]
+            if name == 'InputLayer':
+                shape = i.input_shape[0][1:]
+            elif name == 'MaxPooling2D':
+                shape = i.input_shape[1:]
+            else:
+                shape = i.output_shape[1:]
+            layers.append((tuple(shape), name))
+
+        return layers
 
     def predict(self, image):
         """
@@ -297,3 +324,13 @@ class TFLiteInterface:
     #             The prediction.
     #     """
     #     return utility.get_class_name(self.predict_class(image))
+
+if __name__ == "__main__":
+
+    tf_interface = TFInterface("/home/charlesedwards/Documents/kaggle_2018_dataset/models/CC trained/K2018_MFCC_RESNET32_lr-5e-06_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_categorical_crossentropy.h5")
+
+    # parent = np.empty()
+    # np.append( parent, [ 0, 0, 0 ] )
+
+    # array = np.zeros((4, 3))
+    # print(array)

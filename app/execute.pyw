@@ -177,17 +177,206 @@ class ApplicationWindow(QMainWindow):
             # make sure the device id is 
             self.audio_handler.adjust_stream(selected_device_id, supported_srs[value])
 
-
-    # def adjust_spectrogram_scale(self, spectrogram_target=None, spectrogram_img_array=None, sr=config.SAMPLE_RATE, chunk=config.CHUNK_SIZE):
-
-    #     # setup the correct scaling for y-axis
-    #     freq = np.arange(0,int(sr/2))
+    def fetch_h5_model(self):
+        print("starting -> QFileDialog")
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","Hierarchical Data Format (*.H5)", options=options) #All Files (*);;
         
-    #     # set the y-axis to the correct frequency scale
-    #     yscale = 1.0/(spectrogram_img_array.shape[1]/freq[-1])
+        # if the user selected a file
+        if fileName:
 
-    #     # set spectrogram_img scale
-    #     spectrogram_target.scale((1./config.SAMPLE_RATE)*chunk, yscale)
+            print(f"Hierarchical data format file provided: {fileName}")
+        
+            # disable the current AI
+            self.key_out_augmented_intelligence()
+
+            # attempt to initialize an instance of the tf_interface
+            try:
+
+                # initialize the tf_interface
+                self.tf_model_interface = tf_interface.TFInterface(fileName)
+
+            except Exception as e:
+                print(f"Error when initializing the TFInterface {e}")
+
+            # initialize the 3d visualizer
+            if len(self.tf_model_interface.layers) > 0:
+                self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
+
+    def _shape2array(self, shape, layers_len, xy_max):
+        """create shape to array/matrix"""
+        x = shape[0]
+        y = shape[1]
+        z = shape[2]
+
+        single_layer = []
+
+        if xy_max[0] < x:
+            xy_max[0] = x
+        if xy_max[1] < y:
+            xy_max[1] = y
+
+        for k in range(z):
+            arr_x, arr_y, arr_z = [], [], []
+
+            for i in range(y):
+                ox = [j for j in range(x)]
+                arr_x.append(ox)
+
+            for i in range(y):
+                oy = [j for j in (np.ones(x, dtype=int) * i)]
+                arr_y.append(oy)
+
+            for i in range(y):
+                oz = [j for j in (np.ones(y, dtype=int) * layers_len)]
+                arr_z.append(oz)
+
+            layers_len += 2
+            single_layer.append([arr_x, arr_y, arr_z])
+
+        layers_len += 4
+
+        return single_layer, layers_len, xy_max
+
+    def generate_3d_visualization_of_tf_model(self, layers:list):
+
+        print("visualizing 3d model")
+
+        # xs = []
+        # ys = []
+        # zs = []
+
+        # for i, layer in enumerate(layers):
+        #     shape = layer[0]
+        #     name = layer[1]
+        #     print(shape,name)
+        #     xs.append(shape[0])
+
+        #     try:
+        #         ys.append(shape[1])
+        #     except IndexError:
+        #         ys.append(0)
+
+        #     try:
+        #         zs.append(shape[2])
+        #     except IndexError:
+        #         zs.append(0)
+
+        model_shape_parent = [
+            
+        ]
+
+        for i, layer in enumerate(layers):
+            shape = layer[0]
+            name = layer[1]
+
+            n1 = shape[0]
+
+            try:
+                n2 = shape[1]
+            except IndexError:
+                n2 = 1
+            
+            try:
+                n3 = shape[2]
+            except IndexError:
+                n3 = 1
+
+            print(layer,shape,name)
+            model_shape_parent = []
+            for x in range(n1):
+                for y in range(n2):
+                    for z in range(n3):
+                        #model_shape_parent.append( [ x * 5, (i * n3) + z + 10, y * 5 ] ) # [ x, z, i * 10 ]
+                        model_shape_parent.append( [ x, z - int(z/2), y ] ) # [ x, z, i * 10 ]
+
+            m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=(1, 0, 0, 1))
+            self.glvw.addItem(m)
+            break
+
+        # for i, layer in enumerate(layers):
+
+        #     shape = layer[0]
+        #     name = layer[1]
+
+        # layers_len = 0
+        # xy_max = [0, 0]
+        # layers_array = []
+        # for layer in layers:
+            
+        #     print(layer)
+        #     single_layer, layers_len, xy_max = self._shape2array(layer[0], layers_len, xy_max)
+        #     #print(single_layer)
+        #     layers_array.append(single_layer)
+
+        # print(f"layers: {len(layers_array)}, xy_max: {xy_max}")
+
+        # temp = True
+        # last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
+        # xy_max = [0, 0]
+        # for layer in layers:
+        #     line_x, line_y, line_z = [], [], []
+        #     color_count = 0
+
+        #     for j in layer:
+        #         my_x, my_y, my_z = [], [], []
+        #         temp_list_l = []
+
+        #         for k in j[0]:
+        #             k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
+        #             my_x += k
+
+        #         line_x.append([k[0], k[-1]])
+
+        #         for l in j[1]:
+        #             l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
+        #             my_y += l
+        #             temp_list_l.append(l[0])
+
+        #         line_y.append([temp_list_l[0], temp_list_l[-1]])
+
+        #         for k in j[2]:
+        #             my_z += k
+
+        #         line_z.append([k[0], k[-1]])
+
+        #         # if color_in == 'rgb':
+        #         #     color = color_in[color_count]
+        #         #     color_count += 1
+        #         # else:
+        #         #     color = color_in
+
+        #         # ax.scatter(my_x, my_z, my_y, c=color, marker=marker, s=20)
+        #         m = gl.GLScatterPlotItem(pos=(my_x, my_z, my_y), color=(1, 0, 0, 1))
+        #         self.glvw.addItem(m)
+
+            # parent = np.empty(shape=(1,3))
+            # for x in range(shape[1]): 
+            #     np.append( parent, [ x, i, 0 ], axis=0 )
+
+            # m = gl.GLScatterPlotItem(pos=parent, color=(1, 0, 0, 1))
+
+            # md = gl.MeshData.sphere(rows=2, cols=4,radius=0.25)
+            # m1 = gl.GLMeshItem(
+            #     meshdata=md,
+            #     smooth=False,
+            #     color=(1, 0, 0, 0.2),
+            #     shader="balloon",#"balloon",
+            #     computeNormals=False,
+            #     drawEdges=True,
+            #     drawFaces=False,
+            #     #glOptions="additive",
+            # )
+            # m1.resetTransform()
+            # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+            # m1.translate(x, i, 0)
+            #self.glvw.addItem(m)
+
+            #break
+
+
+        pass
 
     def setup_user_interface(self) -> None:
         """
@@ -199,12 +388,20 @@ class ApplicationWindow(QMainWindow):
         # add the key_in_augmented_intelligence function to the key_in_button
         key_in_button = QAction('Attach AI', self)
         key_in_button.setShortcut('Ctrl+Q')
+        key_in_button.setToolTip('This button will engage the AI and tie it into the audio stream data.')
         key_in_button.triggered.connect(self.key_in_augmented_intelligence)
 
         # add the key_out_augmented_intelligence function to the key_in_button
         key_out_button = QAction('Detach AI', self)
         key_out_button.setShortcut('Ctrl+W')
+        key_out_button.setToolTip('This button will disengage the AI from the audio stream data.')
         key_out_button.triggered.connect(self.key_out_augmented_intelligence) 
+
+        # add the key_out_augmented_intelligence function to the key_in_button
+        load_ml_model_button = QAction('Load H5 Model', self)
+        #load_ml_model_button.setShortcut('Ctrl+L')
+        load_ml_model_button.setToolTip('This button will invoke a file dialog and allows you to load a TF h5 model.')
+        load_ml_model_button.triggered.connect(self.fetch_h5_model) 
 
         """Microphone Selection ComboBox"""
         # label
@@ -232,9 +429,10 @@ class ApplicationWindow(QMainWindow):
         self.toolbar.addWidget(self.mscb)
         self.toolbar.addWidget(self.sscb_label)
         self.toolbar.addWidget(self.sscb)
+        self.toolbar.addAction(load_ml_model_button)
 
         """Initial Variables """
-
+        self.tf_interface = None # type: tf_interface.TFInterface
         self.audio_handler = None # set to none so that we can check if it is None later
         self.source = [] # source of our frame buffer
 
@@ -590,10 +788,40 @@ class ApplicationWindow(QMainWindow):
 
         # try adding a 3d plot
         self.glvw = gl.GLViewWidget()
-        z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
-        p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
-        self.glvw.addItem(p13d)
+        # z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
+        # p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
+        # self.glvw.addItem(p13d)
 
+        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.25)
+        # m1 = gl.GLMeshItem(
+        #     meshdata=md,
+        #     smooth=True,
+        #     color=(1, 0, 0, 0.2),
+        #     shader="shaded",#"balloon",
+        #     #glOptions="additive",
+        # )
+        # m1.resetTransform()
+        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        # m1.translate(0, 0, 0)
+        # self.glvw.addItem(m1)
+
+        # np.random.normal(size=(2500, 3))
+
+        # create empty numpy array with 3 dims 
+        # array = np.zeros((4, 3))
+        # print(array)
+
+        # md = gl.GLScatterPlotItem(pos=array, color=(1, 0, 0, 1))
+        # self.glvw.addItem(md)
+
+        # array = np.random.normal(size=(10, 3))
+
+        # # create empty numpy array with 3 dims 
+        # #array = np.zeros((4, 3))
+        # print(array)
+
+        # md = gl.GLScatterPlotItem(pos=array, color=(1, 0, 0, 1))
+        # self.glvw.addItem(md)
 
         """
             https://stackoverflow.com/questions/52704327/how-to-insert-a-3d-glviewwidget-into-a-window-containing-2d-pyqtgraph-plots
@@ -698,13 +926,13 @@ class ApplicationWindow(QMainWindow):
             else:
                 print("Audio stream is not active")
 
-        self.tf_model = None
+        #self.tf_model_interface = None
 
         # attempt to initialize an instance of the tf_interface
         #try:
 
         # # initialize the tf_interface
-        # self.tf_model = tf_interface.TFLiteInterface(
+        # self.tf_model_interface = tf_interface.TFLiteInterface(
         #     os.path.join( 
         #         root_dir_path, 
         #         'tf_models', 
@@ -763,9 +991,9 @@ class ApplicationWindow(QMainWindow):
         #             # # adding scatter plot item to the plot window
         #             # plot.addItem(scatter)
 
-        # #_plot_dots(self.tf_model.layers_array, self.tf_model.layers_name, self.tf_model.layers_color, self.tf_model.layers_marker, self.ml_v_canvas.axes, self.tf_model.xy_max)
+        # #_plot_dots(self.tf_model_interface.layers_array, self.tf_model_interface.layers_name, self.tf_model_interface.layers_color, self.tf_model_interface.layers_marker, self.ml_v_canvas.axes, self.tf_model_interface.xy_max)
 
-        # #self.ml_v.plot( self.tf_model. )
+        # #self.ml_v.plot( self.tf_model_interface. )
 
         #     # adjust the size of the tensor
         #     #self.tf_interface.resize_tensor_input(self.audio_handler.np_buffer.size)
@@ -1022,7 +1250,7 @@ class ApplicationWindow(QMainWindow):
         """perform a classification using the tf_interface"""
         pass
         # try:
-        #     if self.tf_model is not None:
+        #     if self.tf_model_interface is not None:
         #         # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
         #         new_buffer = self.audio_handler.resample(self.audio_handler.np_buffer, self.audio_handler.SAMPLE_RATE, 16000).astype(np.float32)
         #         #print(type(new_buffer), new_buffer.shape)
@@ -1030,8 +1258,8 @@ class ApplicationWindow(QMainWindow):
 
         #         # shove in our wave form into the TF Lite Model
         #         #self.tf_interface.resize_tensor_input(new_buffer.size)
-        #         self.tf_model.feed(new_buffer)
-        #         print(self.tf_model.labels[self.tf_model.fetch_best_score_index()])
+        #         self.tf_model_interface.feed(new_buffer)
+        #         print(self.tf_model_interface.labels[self.tf_model_interface.fetch_best_score_index()])
         # except Exception:
         #     print(f"Error performing TF prediction {traceback.format_exc()}")
 
@@ -1041,7 +1269,7 @@ class ApplicationWindow(QMainWindow):
         #     data = self.source[len(self.source)-1]
 
         #     # get the classification
-        #     classification = self.tf_model.get_classification(data)
+        #     classification = self.tf_model_interface.get_classification(data)
 
         #     # update the label
         #     self.label.setText(f"{classification}")
@@ -1095,7 +1323,7 @@ def execute():
     palette.setColor(QPalette.WindowText, QtCore.Qt.white)
     palette.setColor(QPalette.Base, QtGui.QColor(0,0,0)) # 15
     palette.setColor(QPalette.AlternateBase, QtGui.QColor(20,20,20)) # 53
-    palette.setColor(QPalette.ToolTipBase, QtCore.Qt.white)
+    palette.setColor(QPalette.ToolTipBase, QtGui.QColor(20,20,20))
     palette.setColor(QPalette.ToolTipText, QtCore.Qt.white)
     palette.setColor(QPalette.Text, QtCore.Qt.white)
     palette.setColor(QPalette.Button, QtGui.QColor(20,20,20)) # 53
