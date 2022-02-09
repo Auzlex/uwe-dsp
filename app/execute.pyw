@@ -464,8 +464,9 @@ class ApplicationWindow(QMainWindow):
         """ Canvas References for Plotting"""
         self.amplitude_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="audio amplitude".upper(), row=0, col=0)
         self.fft_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Fourier Wave Transform".upper(), row=1, col=0)
-        self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="spectrogram".upper(), row=2, col=0)
-        self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="mel spectrogram".upper(), row=3, col=0)
+        self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Linear-scale spectrogram".upper(), row=2, col=0)
+        self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-scale spectrogram".upper(), row=3, col=0)
+        self.mfcc_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-frequency cepstral coefficients".upper(), row=4, col=0)
 
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
@@ -757,6 +758,7 @@ class ApplicationWindow(QMainWindow):
 
         # set the label of the canvas to show frequency on the Y axis
         self.spg_canvas.setLabel('left', 'Frequency', units='Hz')
+        #self.spg_canvas.setXRange(0, config.MAX_BUFFER_TIME * 2, padding=0) # this will limit the spectrogram to the last 10 seconds of data and stop it spazzing
 
         """Mel Spectrogram plot properties and setup"""
         # image for mel spectrogram
@@ -766,9 +768,14 @@ class ApplicationWindow(QMainWindow):
         # set the image array to zeros
         self.mel_spectrogram_img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
 
+        # myLUT = np.array([[1.        , 1.        , 1.        ],
+        #           [0.38401946, 0.48864573, 0.963664  ],
+        #           [0.28766167, 0.81375253, 0.49518645],
+        #           [0.71970558, 0.92549998, 0.34362429]]) * 255
+
         # set colormap
         self.mel_spectrogram_img.setLookupTable(lut)
-        self.mel_spectrogram_img.setLevels([-50,40])
+        self.mel_spectrogram_img.setLevels([-3,0.5])
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
@@ -781,6 +788,30 @@ class ApplicationWindow(QMainWindow):
 
         # set the label of the canvas to show frequency on the Y axis
         self.mel_spec_canvas.setLabel('left', 'Frequency', units='Hz')
+
+        """MFCC Spectrogram plot properties and setup"""
+        # image for mel spectrogram
+        self.mfcc_spectrogram_img = pg.ImageItem()
+        # add the mel_spectrogram_img to the mel_spec canvas
+        self.mfcc_spec_canvas.addItem(self.mfcc_spectrogram_img)
+        # set the image array to zeros
+        self.mfcc_spectrogram_img_array = np.zeros((1000, int(config.CHUNK_SIZE/2+1)))
+
+        # set colormap
+        self.mfcc_spectrogram_img.setLookupTable(lut)
+        self.mfcc_spectrogram_img.setLevels([-500,200]) # [-50,40]
+
+        # setup the correct scaling for y-axis
+        freq = np.arange(0,int(config.SAMPLE_RATE/2))
+        
+        # set the y-axis to the correct frequency scale
+        yscale = 1.0/(self.mfcc_spectrogram_img_array.shape[1]/freq[-1])
+
+        # set spectrogram_img scale
+        self.mfcc_spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+
+        # set the label of the canvas to show frequency on the Y axis
+        self.mfcc_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
         """construct the 3d viewer window with pyqtgraph"""
         ## test
@@ -1145,23 +1176,43 @@ class ApplicationWindow(QMainWindow):
 
                 stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=None)
                 
-                #print(config.CHUNK_SIZE,int(2048/2))
-
                 #convert to db
-                psd = librosa.amplitude_to_db(np.abs(stft))
-                psd_t = np.transpose(psd)
-                psd_t = psd_t[len(psd_t)-1]
+                stft_db_abs = librosa.amplitude_to_db(np.abs(stft))
+                stft_db_abs_t = np.transpose(stft_db_abs)
+                #psd_t = psd_t[len(psd_t)-1]
                 #print(psd_t.shape,  self.spectrogram_img_array.shape)
-                #self.spectrogram_img.setImage(psd, autoLevels=False)
+                
+                self.spectrogram_img.setImage(stft_db_abs_t, autoLevels=False)
 
-                #print(self.spectrogram_img_array.shape, psd.shape, psd2.shape)
+                #print(psd_t[0:self.spectrogram_img_array.shape[1]])
+
+                # self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
+                # self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
+
 
                 # roll down one and replace leading edge with new data
-                self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
-                self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
+                # self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
+                # self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
+                # self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
 
-                # """mel spectrogram""" 
+                """mel spectrogram""" 
+
+                msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                msg_t = np.transpose(msg) # transpose the data because for some reason they are in a weird format idk
+                #msg_t_n = librosa.util.normalize(msg_t)
+                self.mel_spectrogram_img.setImage(msg_t, autoLevels=False)
+
+                #print(np.min(msg_t), np.max(msg_t))
+
+                """mfcc""" 
+                mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                mfcc_sg_t = np.transpose(mfcc_sg) # transpose the data because for some reason they are in a weird format idk
+                #msg_t_n = librosa.util.normalize(msg_t)
+                self.mfcc_spectrogram_img.setImage(mfcc_sg_t, autoLevels=False)
+
+                #print(np.min(mfcc_sg_t), np.max(mfcc_sg_t))
+
                 # #n_fft was 2048, hop len 512 n_mels 128
                 # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, n_fft=config.CHUNK_SIZE, S=None, n_mels=128)
                 # mel_spec = librosa.amplitude_to_db(np.abs(mel_spec))
