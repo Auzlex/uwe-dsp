@@ -799,7 +799,7 @@ class ApplicationWindow(QMainWindow):
 
         # set colormap
         self.mfcc_spectrogram_img.setLookupTable(lut)
-        self.mfcc_spectrogram_img.setLevels([-500,200]) # [-50,40]
+        self.mfcc_spectrogram_img.setLevels([-1,1]) # [-50,40]
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
@@ -1208,8 +1208,8 @@ class ApplicationWindow(QMainWindow):
                 """mfcc""" 
                 mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate)
                 mfcc_sg_t = np.transpose(mfcc_sg) # transpose the data because for some reason they are in a weird format idk
-                #msg_t_n = librosa.util.normalize(msg_t)
-                self.mfcc_spectrogram_img.setImage(mfcc_sg_t, autoLevels=False)
+                mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
+                self.mfcc_spectrogram_img.setImage(mfcc_t_n, autoLevels=False)
 
                 #print(np.min(mfcc_sg_t), np.max(mfcc_sg_t))
 
