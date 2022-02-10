@@ -1109,36 +1109,36 @@ class ApplicationWindow(QMainWindow):
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
 
-    def mel_spectrogram(self):
-        """
-            Function: mel_spectrogram
-            Description: calculate the mel spectrogram
-        """
+    # def mel_spectrogram(self):
+    #     """
+    #         Function: mel_spectrogram
+    #         Description: calculate the mel spectrogram
+    #     """
 
-        # calculate the mel spectrogram
-        self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
-        self.mel_spectrogram_data = librosa.power_to_db(self.mel_spectrogram_data)
+    #     # calculate the mel spectrogram
+    #     self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
+    #     self.mel_spectrogram_data = librosa.power_to_db(self.mel_spectrogram_data)
 
-        # set the mel spectrogram data
-        self.mel_spectrogram_x = list(range(len(self.mel_spectrogram_data[0])))
-        self.mel_spectrogram_y = self.mel_spectrogram_data
+    #     # set the mel spectrogram data
+    #     self.mel_spectrogram_x = list(range(len(self.mel_spectrogram_data[0])))
+    #     self.mel_spectrogram_y = self.mel_spectrogram_data
 
-    # function that takes in audio data and erturns mel spectrogram
-    def get_mel_spectrogram(self, audio_data):
-        """
-            Function: get_mel_spectrogram
-            Description: calculate the mel spectrogram
-        """
+    # # function that takes in audio data and erturns mel spectrogram
+    # def get_mel_spectrogram(self, audio_data):
+    #     """
+    #         Function: get_mel_spectrogram
+    #         Description: calculate the mel spectrogram
+    #     """
 
-        # calculate the mel spectrogram
-        mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
-        mel_spectrogram_data = librosa.power_to_db(mel_spectrogram_data)
+    #     # calculate the mel spectrogram
+    #     mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
+    #     mel_spectrogram_data = librosa.power_to_db(mel_spectrogram_data)
 
-        # set the mel spectrogram data
-        mel_spectrogram_x = list(range(len(mel_spectrogram_data[0])))
-        mel_spectrogram_y = mel_spectrogram_data
+    #     # set the mel spectrogram data
+    #     mel_spectrogram_x = list(range(len(mel_spectrogram_data[0])))
+    #     mel_spectrogram_y = mel_spectrogram_data
 
-        return mel_spectrogram_x, mel_spectrogram_y
+    #     return mel_spectrogram_x, mel_spectrogram_y
 
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
