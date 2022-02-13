@@ -6,120 +6,20 @@ import zipfile
 import tensorflow as tf
 import numpy as np
 import utility
+import h5py
+import json
+import config
+from keras.models import load_model
 
-#region layer viewer functions
-# def _model2layer(model):
-#     """fatch layers name and shape from model"""
-#     layers = []
+def load_model_ext(filepath, custom_objects=None):
+    model = load_model(filepath, custom_objects=None)
+    f = h5py.File(filepath, mode='r')
+    meta_data = None
+    if 'metadata' in f.attrs:
+        meta_data = f.attrs.get('metadata')
+    f.close()
+    return model, meta_data
 
-#     for i in model.layers:
-#         name = str(i.with_name_scope).split('.')[-1][:-3]
-#         if name == 'InputLayer':
-#             shape = i.input_shape[0][1:]
-#         elif name == 'MaxPooling2D':
-#             shape = i.input_shape[1:]
-#         else:
-#             shape = i.output_shape[1:]
-#         layers.append( (tuple(shape), name) )
-
-#     return layers
-
-# def _layer(shape, name):
-#     """add more feature on layers"""
-#     lay_shape = None
-#     lay_name = None
-#     lay_color = None
-#     lay_marker = None
-
-#     if len(shape) == 1:
-#         lay_shape = (shape[0], 1, 1)
-#     elif len(shape) == 2:
-#         lay_shape = (shape[0], shape[1], 1)
-#     else:
-#         if name == 'MaxPooling2D' or name == 'AveragePooling2D':
-#             lay_shape = (shape[0], shape[1], 1)
-#         else:
-#             lay_shape = shape
-
-#     lay_name = name
-
-#     if len(lay_shape) == 3 and lay_shape[-1] == 3:
-#         lay_color = 'rgb'
-#         lay_marker = 'o'
-#     else:
-#         if lay_name == 'InputLayer':
-#             lay_color = 'r'
-#             lay_marker = 'o'
-#         elif lay_name == 'Conv2D':
-#             lay_color = 'y'
-#             lay_marker = '^'
-#         elif lay_name == 'MaxPooling2D' or lay_name == 'AveragePooling2D':
-#             lay_color = 'c'
-#             lay_marker = '.'
-#         else:
-#             lay_color = 'g'
-#             lay_marker = '.'
-
-#     return {'shape': lay_shape, 'name': lay_name, 'color': lay_color, 'marker': lay_marker}
-
-# def _shape2array(shape, layers_len, xy_max):
-#     """create shape to array/matrix"""
-
-#     shape = np.asarray(shape)
-
-#     x = shape[0]
-#     y = shape[1]
-#     z = shape[2]
-
-#     single_layer = []
-
-#     if xy_max[0] < x:
-#         xy_max[0] = x
-#     if xy_max[1] < y:
-#         xy_max[1] = y
-
-#     for k in range(z):
-#         arr_x, arr_y, arr_z = [], [], []
-
-#         for i in range(y):
-#             ox = [j for j in range(x)]
-#             arr_x.append(ox)
-
-#         for i in range(y):
-#             oy = [j for j in (np.ones(x, dtype=int) * i)]
-#             arr_y.append(oy)
-
-#         for i in range(y):
-#             oz = [j for j in (np.ones(y, dtype=int) * layers_len)]
-#             arr_z.append(oz)
-
-#         layers_len += 2
-#         single_layer.append([arr_x, arr_y, arr_z])
-
-#     layers_len += 4
-
-#     return single_layer, layers_len, xy_max
-
-
-#             # if self.connection:
-#             #     if name == 'Dense' or name == 'Flatten':
-#             #         for c in line_z:
-#             #             a, b, c = line_x[0], line_y[0], c
-#             #             if temp:
-#             #                 temp = False
-#             #                 last_a, last_b, last_c = a, b, c
-#             #                 continue
-
-#             #             if color_in == 'rgb':
-#             #                 color = color_in[color_count]
-#             #                 color_count += 1
-
-#             #             else:
-#             #                 color = color_in
-
-#             #             self._dense(ax, a[0], a[1], b[0], b[1], last_a[0], last_a[1], last_b[0], last_b[1], c[0],
-#             #                         last_c[0], c=color)
-#             #             last_a, last_b, last_c = a, b, c
 #endregion
 class TFInterface:
     """
@@ -134,20 +34,11 @@ class TFInterface:
                 model_path: The path to the model.
         """
         self.model_path = model_path
-        self.model = tf.keras.models.load_model(self.model_path)
+        self.model, self.metadata = load_model_ext(model_path)
+        self.metadata = json.loads(self.metadata)
         self.layers = self._model2layers()
+
         
-        #import json
-        #print(json.dumps(self.layers, indent=4, sort_keys=False))
-        #print("\n\n")
-        print(self.layers)
-        #self.model.summary()
-
-        #https://stackoverflow.com/questions/62276989/tflite-can-i-get-graph-layer-sequence-information-directly-through-the-tf2-0-a
-        # for layer in self.model.layers:
-        #     print(layer)
-
-
     def _model2layers(self):
         """fatch layers name and shape from model"""
         layers = []
@@ -164,38 +55,59 @@ class TFInterface:
 
         return layers
 
-    def predict(self, image):
+    def predict_mfcc(self, mffc_data):
         """
             Method name: predict
-            Method description: This method is used to predict the image.
+            Method description: This method is used to predict an audio sample.
             Input:
-                image: The image to predict.
+                audio_sample: normalized audio sample of 2 seconds.
             Output:
                 The prediction.
         """
-        return self.model.predict(image)
 
-    def predict_class(self, image):
-        """
-            Method name: predict_class
-            Method description: This method is used to predict the class of the image.
-            Input:
-                image: The image to predict.
-            Output:
-                The prediction.
-        """
-        return np.argmax(self.predict(image))
+        mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * 2]
 
-    def predict_class_name(self, image):
-        """
-            Method name: predict_class_name
-            Method description: This method is used to predict the class name of the image.
-            Input:
-                image: The image to predict.
-            Output:
-                The prediction.
-        """
-        return utility.get_class_name(self.predict_class(image))
+        n_mfcc = 40#128#40
+        sampling_rate = 44100
+        audio_duration = 2
+        audio_length = audio_duration * sampling_rate
+        input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+
+        array = np.resize(mffc_data, input_shape)
+        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        
+        prediction = self.model.predict([array])
+
+        index = np.argmax(prediction, axis=None, out=None)
+
+        if self.metadata is not None:
+            
+            #print(index, self.metadata[index], type(self.metadata) )
+            return self.metadata[index]
+        else:
+            return np.argmax(prediction)
+
+    # def predict_class(self, image):
+    #     """
+    #         Method name: predict_class
+    #         Method description: This method is used to predict the class of the image.
+    #         Input:
+    #             image: The image to predict.
+    #         Output:
+    #             The prediction.
+    #     """
+    #     return np.argmax(self.predict(image))
+
+    # def predict_class_name(self, image):
+    #     """
+    #         Method name: predict_class_name
+    #         Method description: This method is used to predict the class name of the image.
+    #         Input:
+    #             image: The image to predict.
+    #         Output:
+    #             The prediction.
+    #     """
+    #     return utility.get_class_name(self.predict_class(image))
 
 class TFLiteInterface:
     """

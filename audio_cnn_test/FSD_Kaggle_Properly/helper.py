@@ -164,3 +164,25 @@ def plot_train_history(history, x_ticks_vertical=False):
         plt.xticks(np.arange(0, len(history['accuracy']), 5.0))
 
     plt.show()
+
+
+import h5py
+from keras.models import save_model
+from keras.models import load_model
+
+def load_model_ext(filepath, custom_objects=None):
+    model = load_model(filepath, custom_objects=None)
+    f = h5py.File(filepath, mode='r')
+    meta_data = None
+    if 'metadata' in f.attrs:
+        meta_data = f.attrs.get('metadata')
+    f.close()
+    return model, meta_data
+
+def save_model_ext(model, filepath, overwrite=True, meta_data=None):
+    save_model(model, filepath, overwrite)
+    if meta_data is not None:
+        f = h5py.File(filepath, mode='a')
+        f.attrs['metadata'] = meta_data
+        f.close()
+

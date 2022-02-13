@@ -26,6 +26,7 @@ from PyQt5.QtCore import QTimer#QSize, QTimer,
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 from pyqtgraph.colormap import ColorMap
+from pyqtgraph import Vector
 
 #from matplotlib import cm # was used to get other colour maps
 
@@ -79,6 +80,9 @@ class ApplicationWindow(QMainWindow):
     def __init__(self): # initialization function
         super().__init__() # invoke derived class constructor
         self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
+
+        self.ai_keyed_in = False # determines if the AI is keyed in
+
         self.setup_user_interface() # invoke the ui initialize
 
     def key_in_augmented_intelligence(self):
@@ -88,6 +92,8 @@ class ApplicationWindow(QMainWindow):
             start the key in process which allows initializes the AI to listen into the audio data
         """
         logging.info("key in button pressed, starting key in process")
+        print("listening...")
+        self.ai_keyed_in = True
 
     def key_out_augmented_intelligence(self):
         """
@@ -96,6 +102,8 @@ class ApplicationWindow(QMainWindow):
             stop the AI from listening into the audio data.
         """
         logging.info("key out button pressed, stopping key in process")
+        print("stopped listening...")
+        self.ai_keyed_in = False
 
     def indicator_text(self):
         """
@@ -204,70 +212,102 @@ class ApplicationWindow(QMainWindow):
             if len(self.tf_model_interface.layers) > 0:
                 self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
-    def _shape2array(self, shape, layers_len, xy_max):
-        """create shape to array/matrix"""
-        x = shape[0]
-        y = shape[1]
-        z = shape[2]
-
-        single_layer = []
-
-        if xy_max[0] < x:
-            xy_max[0] = x
-        if xy_max[1] < y:
-            xy_max[1] = y
-
-        for k in range(z):
-            arr_x, arr_y, arr_z = [], [], []
-
-            for i in range(y):
-                ox = [j for j in range(x)]
-                arr_x.append(ox)
-
-            for i in range(y):
-                oy = [j for j in (np.ones(x, dtype=int) * i)]
-                arr_y.append(oy)
-
-            for i in range(y):
-                oz = [j for j in (np.ones(y, dtype=int) * layers_len)]
-                arr_z.append(oz)
-
-            layers_len += 2
-            single_layer.append([arr_x, arr_y, arr_z])
-
-        layers_len += 4
-
-        return single_layer, layers_len, xy_max
-
     def generate_3d_visualization_of_tf_model(self, layers:list):
 
         print("visualizing 3d model")
 
-        # xs = []
-        # ys = []
-        # zs = []
+        self.glvw.clear()
 
-        # for i, layer in enumerate(layers):
-        #     shape = layer[0]
-        #     name = layer[1]
-        #     print(shape,name)
-        #     xs.append(shape[0])
+        # z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
+        # p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
+        # self.glvw.addItem(p13d)
 
-        #     try:
-        #         ys.append(shape[1])
-        #     except IndexError:
-        #         ys.append(0)
+        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        # m1 = gl.GLMeshItem(
+        #     meshdata=md,
+        #     smooth=True,
+        #     color=(1, 1, 1, 1),
+        #     shader="shaded",#"balloon",
+        #     #glOptions="additive",
+        # )
+        # m1.resetTransform()
+        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        # m1.translate(0, 0, 0)
+        # self.glvw.addItem(m1)
 
-        #     try:
-        #         zs.append(shape[2])
-        #     except IndexError:
-        #         zs.append(0)
+        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        # m1 = gl.GLMeshItem(
+        #     meshdata=md,
+        #     smooth=True,
+        #     color=(0, 0, 1, 1),
+        #     shader="shaded",#"balloon",
+        #     #glOptions="additive",
+        # )
+        # m1.resetTransform()
+        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        # m1.translate(0, 1, 0)
+        # self.glvw.addItem(m1)
+
+        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        # m1 = gl.GLMeshItem(
+        #     meshdata=md,
+        #     smooth=True,
+        #     color=(0, 1, 0, 1),
+        #     shader="shaded",#"balloon",
+        #     #glOptions="additive",
+        # )
+        # m1.resetTransform()
+        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        # m1.translate(1, 0, 0)
+        # self.glvw.addItem(m1)
+
+        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        # m1 = gl.GLMeshItem(
+        #     meshdata=md,
+        #     smooth=True,
+        #     color=(1, 1, 0, 1),
+        #     shader="shaded",#"balloon",
+        #     #glOptions="additive",
+        # )
+        # m1.resetTransform()
+        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        # m1.translate(0, 0, 1)
+        # self.glvw.addItem(m1)
 
         model_shape_parent = [
             
         ]
 
+        a = 1
+        N = 1
+        colours = [
+            (0, 0, N, 0.01),
+            (N, N, 0, 0.01),
+            (0, N, N, 0.01),
+            (N, 0, N, 0.01)
+        ]
+
+        count = 0
+        
+        total_nn_shape = 0
         for i, layer in enumerate(layers):
+            
+            shape = layer[0]
+
+            try:
+                n3 = shape[2]
+            except IndexError:
+                n3 = 1
+
+            total_nn_shape = total_nn_shape + n3
+
+        next_shape_offset = 0
+        for i, layer in enumerate(layers):
+            count += 1
+
+            if count > len(colours)-1:
+                count = 0
+
             shape = layer[0]
             name = layer[1]
 
@@ -283,100 +323,37 @@ class ApplicationWindow(QMainWindow):
             except IndexError:
                 n3 = 1
 
-            print(layer,shape,name)
+            #print(layer,shape,name)
             model_shape_parent = []
             for x in range(n1):
                 for y in range(n2):
                     for z in range(n3):
-                        #model_shape_parent.append( [ x * 5, (i * n3) + z + 10, y * 5 ] ) # [ x, z, i * 10 ]
-                        model_shape_parent.append( [ x, z - int(z/2), y ] ) # [ x, z, i * 10 ]
+                        # X is 
+                        model_shape_parent.append( [ (x - n1/2) * 0.05, 0 + (((next_shape_offset + ( i * 5 )) + z) - (total_nn_shape/2)) * 0.025, (y - (n2/2)) * 0.05 ] ) # [ x, z, i * 10 ]
+                        #model_shape_parent.append( [ x * 5, (i * 150 * n3) + z, y * 5 ] ) # [ x, z, i * 10 ]
+                        #model_shape_parent.append( [ x, z - int(z/2), y ] ) # [ x, z, i * 10 ]
 
-            m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=(1, 0, 0, 1))
+            # get the last Z dim shape and append to next shape offset to ensure that the shapes are not overlapping
+            next_shape_offset += n3
+
+            # x <right+, -left> z<+forward,-backward> y<+up, -down>
+
+            colour = (0.1, 0.1, 0.1, 0.025)#colours[count]#(0.1, 0.1, 0.1, 0.025) # all nodes are grey/white
+            if i == 0:
+                colour = (N, 0, 0, a) # entry nodes are green
+            elif i >= len(layers)-2:
+                colour = (0, N, 0, a) # label nodes are red
+
+            m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=colour, size=5, pxMode=True)
             self.glvw.addItem(m)
-            break
-
-        # for i, layer in enumerate(layers):
-
-        #     shape = layer[0]
-        #     name = layer[1]
-
-        # layers_len = 0
-        # xy_max = [0, 0]
-        # layers_array = []
-        # for layer in layers:
             
-        #     print(layer)
-        #     single_layer, layers_len, xy_max = self._shape2array(layer[0], layers_len, xy_max)
-        #     #print(single_layer)
-        #     layers_array.append(single_layer)
+        #self.grid = gl.GLGridItem(size=QtGui.QVector3D(int(next_shape_offset/2) * 0.025,(next_shape_offset * 0.025) * 2,1))
+        self.grid = gl.GLGridItem()
+        #self.grid.setTickSpacing(x=10, y=10, z=10)
+        self.glvw.addItem(self.grid)
 
-        # print(f"layers: {len(layers_array)}, xy_max: {xy_max}")
-
-        # temp = True
-        # last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
-        # xy_max = [0, 0]
-        # for layer in layers:
-        #     line_x, line_y, line_z = [], [], []
-        #     color_count = 0
-
-        #     for j in layer:
-        #         my_x, my_y, my_z = [], [], []
-        #         temp_list_l = []
-
-        #         for k in j[0]:
-        #             k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
-        #             my_x += k
-
-        #         line_x.append([k[0], k[-1]])
-
-        #         for l in j[1]:
-        #             l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
-        #             my_y += l
-        #             temp_list_l.append(l[0])
-
-        #         line_y.append([temp_list_l[0], temp_list_l[-1]])
-
-        #         for k in j[2]:
-        #             my_z += k
-
-        #         line_z.append([k[0], k[-1]])
-
-        #         # if color_in == 'rgb':
-        #         #     color = color_in[color_count]
-        #         #     color_count += 1
-        #         # else:
-        #         #     color = color_in
-
-        #         # ax.scatter(my_x, my_z, my_y, c=color, marker=marker, s=20)
-        #         m = gl.GLScatterPlotItem(pos=(my_x, my_z, my_y), color=(1, 0, 0, 1))
-        #         self.glvw.addItem(m)
-
-            # parent = np.empty(shape=(1,3))
-            # for x in range(shape[1]): 
-            #     np.append( parent, [ x, i, 0 ], axis=0 )
-
-            # m = gl.GLScatterPlotItem(pos=parent, color=(1, 0, 0, 1))
-
-            # md = gl.MeshData.sphere(rows=2, cols=4,radius=0.25)
-            # m1 = gl.GLMeshItem(
-            #     meshdata=md,
-            #     smooth=False,
-            #     color=(1, 0, 0, 0.2),
-            #     shader="balloon",#"balloon",
-            #     computeNormals=False,
-            #     drawEdges=True,
-            #     drawFaces=False,
-            #     #glOptions="additive",
-            # )
-            # m1.resetTransform()
-            # # x <right+, -left> z<+forward,-backward> y<+up, -down>
-            # m1.translate(x, i, 0)
-            #self.glvw.addItem(m)
-
-            #break
-
-
-        pass
+        self.glvw.setCameraPosition(pos=Vector( 0, ((next_shape_offset + len(layers) * 5) / 2 - (total_nn_shape/2)) * 0.025, 0 ), distance=(next_shape_offset / 2) * 0.025)
+        del model_shape_parent
 
     def setup_user_interface(self) -> None:
         """
@@ -819,22 +796,66 @@ class ApplicationWindow(QMainWindow):
 
         # try adding a 3d plot
         self.glvw = gl.GLViewWidget()
+
+        self.grid = gl.GLGridItem()
+        #self.grid.setTickSpacing(x=10, y=10, z=10)
+        self.glvw.addItem(self.grid)
+
         # z = pg.gaussianFilter(np.random.normal(size=(50,50)), (1,1))
         # p13d = gl.GLSurfacePlotItem(z=z, shader='shaded', color=(0.5, 0.5, 1, 1))
         # self.glvw.addItem(p13d)
 
-        # md = gl.MeshData.sphere(rows=10, cols=20,radius=0.25)
-        # m1 = gl.GLMeshItem(
-        #     meshdata=md,
-        #     smooth=True,
-        #     color=(1, 0, 0, 0.2),
-        #     shader="shaded",#"balloon",
-        #     #glOptions="additive",
-        # )
-        # m1.resetTransform()
-        # # x <right+, -left> z<+forward,-backward> y<+up, -down>
-        # m1.translate(0, 0, 0)
-        # self.glvw.addItem(m1)
+        md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        m1 = gl.GLMeshItem(
+            meshdata=md,
+            smooth=True,
+            color=(1, 1, 1, 1),
+            shader="shaded",#"balloon",
+            #glOptions="additive",
+        )
+        m1.resetTransform()
+        # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        m1.translate(0, 0, 0)
+        self.glvw.addItem(m1)
+
+        md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        m1 = gl.GLMeshItem(
+            meshdata=md,
+            smooth=True,
+            color=(0, 0, 1, 1),
+            shader="shaded",#"balloon",
+            #glOptions="additive",
+        )
+        m1.resetTransform()
+        # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        m1.translate(0, 1, 0)
+        self.glvw.addItem(m1)
+
+        md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        m1 = gl.GLMeshItem(
+            meshdata=md,
+            smooth=True,
+            color=(0, 1, 0, 1),
+            shader="shaded",#"balloon",
+            #glOptions="additive",
+        )
+        m1.resetTransform()
+        # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        m1.translate(1, 0, 0)
+        self.glvw.addItem(m1)
+
+        md = gl.MeshData.sphere(rows=10, cols=20,radius=0.15)
+        m1 = gl.GLMeshItem(
+            meshdata=md,
+            smooth=True,
+            color=(1, 1, 0, 1),
+            shader="shaded",#"balloon",
+            #glOptions="additive",
+        )
+        m1.resetTransform()
+        # x <right+, -left> z<+forward,-backward> y<+up, -down>
+        m1.translate(0, 0, 1)
+        self.glvw.addItem(m1)
 
         # np.random.normal(size=(2500, 3))
 
@@ -877,7 +898,7 @@ class ApplicationWindow(QMainWindow):
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.ai_classify_timer = QTimer()
-        self.ai_classify_timer.setInterval(1000 * 10) # 500
+        self.ai_classify_timer.setInterval(2000) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -891,11 +912,13 @@ class ApplicationWindow(QMainWindow):
 
         # create the layout
         Overall_Layout = QGridLayout(central_widget)
-        Overall_Layout.setRowStretch(3, 3)
+        Overall_Layout.setRowStretch(3, 3) # 3, 3)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
         Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
-        Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
+        #Overall_Layout.setRowStretch(2, 3)
+        #Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
+        Overall_Layout.addWidget( self.glvw, 3, 2 ) # append the 3d plot to the layout
 
         # setup the window layout
         self.setGeometry(300, 300, 1280, 720)        # set the size of the window
@@ -947,7 +970,7 @@ class ApplicationWindow(QMainWindow):
 
                 # begin the timers
                 self.pre_process_timer.start() # start the pre-processing timer
-                #self.ai_classify_timer.start() # start the AI classification timer
+                self.ai_classify_timer.start() # start the AI classification timer
 
                 # update plots
                 self.update_plot()
@@ -956,6 +979,21 @@ class ApplicationWindow(QMainWindow):
                 self.timer2.start()
             else:
                 print("Audio stream is not active")
+
+        #TODO: REMOVE THIS AFTER DEBUGGING VISUAIZER
+        # attempt to initialize an instance of the tf_interface
+        #try:
+
+        # initialize the tf_interface
+        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v3.h5")
+        print(self.tf_model_interface.metadata)
+
+        # except Exception as e:
+        #     print(f"Error when initializing the TFInterface {e}")
+
+        # initialize the 3d visualizer
+        if len(self.tf_model_interface.layers) > 0:
+            self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
         #self.tf_model_interface = None
 
@@ -1206,8 +1244,8 @@ class ApplicationWindow(QMainWindow):
                 #print(np.min(msg_t), np.max(msg_t))
 
                 """mfcc""" 
-                mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate)
-                mfcc_sg_t = np.transpose(mfcc_sg) # transpose the data because for some reason they are in a weird format idk
+                self.mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                mfcc_sg_t = np.transpose(self.mfcc_sg) # transpose the data because for some reason they are in a weird format idk
                 mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
                 self.mfcc_spectrogram_img.setImage(mfcc_t_n, autoLevels=False)
 
@@ -1299,7 +1337,13 @@ class ApplicationWindow(QMainWindow):
  
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
-        pass
+        
+        #print("performing tf prediction")
+        if self.mfcc_sg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
+            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
+        else:
+            print("no mfcc or no model")
+        #pass
         # try:
         #     if self.tf_model_interface is not None:
         #         # convert the self.audio_handler.frame_buffer from its sample rate to 16khz
@@ -1328,7 +1372,7 @@ class ApplicationWindow(QMainWindow):
     def classify_audio_update(self):
         # make sure source is long enough
         if len(self.source) > 0:
-
+            
             tf_thread = threading.Thread(target=self.perform_tf_classification)
             tf_thread.start()
         
