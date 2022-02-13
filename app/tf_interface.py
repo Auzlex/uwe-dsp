@@ -66,7 +66,7 @@ class TFInterface:
         """
 
         audio_duration = 4
-        mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
+        #mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
 
         n_mfcc = 40#128#40
         sampling_rate = 44100
@@ -74,6 +74,38 @@ class TFInterface:
         input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
 
         array = np.resize(mffc_data, input_shape)
+        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        
+        prediction = self.model.predict([array])
+
+        index = np.argmax(prediction, axis=None, out=None)
+
+        if self.metadata is not None:
+            
+            #print(index, self.metadata[index], type(self.metadata) )
+            return self.metadata[index]
+        else:
+            return np.argmax(prediction)
+
+    def predict_mel(self, mel_data):
+        """
+            Method name: predict
+            Method description: This method is used to predict an audio sample.
+            Input:
+                audio_sample: normalized audio sample of 2 seconds.
+            Output:
+                The prediction.
+        """
+
+        audio_duration = 4
+        #mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
+
+        n_mfcc = 128#40
+        sampling_rate = 44100
+        audio_length = audio_duration * sampling_rate
+        input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+
+        array = np.resize(mel_data, input_shape)
         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
         
         prediction = self.model.predict([array])

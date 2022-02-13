@@ -898,7 +898,7 @@ class ApplicationWindow(QMainWindow):
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.ai_classify_timer = QTimer()
-        self.ai_classify_timer.setInterval(4000) # 500
+        self.ai_classify_timer.setInterval(1000) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -985,7 +985,7 @@ class ApplicationWindow(QMainWindow):
         #try:
 
         # initialize the tf_interface
-        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MFCC_RESNET32_lr-1e-06_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v4.h5")
+        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MEL_RESNET32_lr-1e-06_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v4.h5")
         print(self.tf_model_interface.metadata)
         self.ai_keyed_in = True
 
@@ -1216,7 +1216,7 @@ class ApplicationWindow(QMainWindow):
                 stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=None)
                 
                 #convert to db
-                stft_db_abs = librosa.amplitude_to_db(np.abs(stft))
+                stft_db_abs = librosa.power_to_db(np.abs(stft)) #librosa.amplitude_to_db(np.abs(stft))
                 stft_db_abs_t = np.transpose(stft_db_abs)
                 #psd_t = psd_t[len(psd_t)-1]
                 #print(psd_t.shape,  self.spectrogram_img_array.shape)
@@ -1237,8 +1237,8 @@ class ApplicationWindow(QMainWindow):
 
                 """mel spectrogram""" 
 
-                msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate)
-                msg_t = np.transpose(msg) # transpose the data because for some reason they are in a weird format idk
+                self.msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                msg_t = np.transpose(self.msg) # transpose the data because for some reason they are in a weird format idk
                 #msg_t_n = librosa.util.normalize(msg_t)
                 self.mel_spectrogram_img.setImage(msg_t, autoLevels=False)
 
@@ -1339,9 +1339,10 @@ class ApplicationWindow(QMainWindow):
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
         
-        #print("performing tf prediction")
-        if self.mfcc_sg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
-            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
+        #print("performing tf prediction") self.mfcc_sg
+        if self.msg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
+            #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
+            print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
         else:
             print("no mfcc or no model")
