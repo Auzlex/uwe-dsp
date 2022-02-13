@@ -35,7 +35,7 @@ class TFInterface:
         """
         self.model_path = model_path
         self.model, self.metadata = load_model_ext(model_path)
-        self.metadata = json.loads(self.metadata)
+        self.metadata = json.loads(self.metadata)#json.loads('["Acoustic_guitar", "Applause", "Bark", "Bass_drum", "Burping_or_eructation", "Bus", "Cello", "Chime", "Clarinet", "Computer_keyboard", "Cough", "Cowbell", "Double_bass", "Drawer_open_or_close", "Electric_piano", "Fart", "Finger_snapping", "Fireworks", "Flute", "Glockenspiel", "Gong", "Gunshot_or_gunfire", "Harmonica", "Hi-hat", "Keys_jangling", "Knock", "Laughter", "Meow", "Microwave_oven", "Oboe", "Saxophone", "Scissors", "Shatter", "Snare_drum", "Squeak", "Tambourine", "Tearing", "Telephone", "Trumpet", "Violin_or_fiddle", "Writing"]')#json.loads(self.metadata)
         self.layers = self._model2layers()
 
         
@@ -65,11 +65,11 @@ class TFInterface:
                 The prediction.
         """
 
-        mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * 2]
+        audio_duration = 4
+        mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
 
         n_mfcc = 40#128#40
         sampling_rate = 44100
-        audio_duration = 2
         audio_length = audio_duration * sampling_rate
         input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
 

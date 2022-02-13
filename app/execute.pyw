@@ -898,7 +898,7 @@ class ApplicationWindow(QMainWindow):
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.ai_classify_timer = QTimer()
-        self.ai_classify_timer.setInterval(2000) # 500
+        self.ai_classify_timer.setInterval(4000) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -985,8 +985,9 @@ class ApplicationWindow(QMainWindow):
         #try:
 
         # initialize the tf_interface
-        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v3.h5")
+        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MFCC_RESNET32_lr-1e-06_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v4.h5")
         print(self.tf_model_interface.metadata)
+        self.ai_keyed_in = True
 
         # except Exception as e:
         #     print(f"Error when initializing the TFInterface {e}")
@@ -1340,7 +1341,8 @@ class ApplicationWindow(QMainWindow):
         
         #print("performing tf prediction")
         if self.mfcc_sg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
-            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
+            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
+            #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
         else:
             print("no mfcc or no model")
         #pass
