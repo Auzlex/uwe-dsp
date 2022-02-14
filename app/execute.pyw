@@ -42,6 +42,25 @@ np.seterr(divide = 'ignore')
 # application version
 __version__ = '0.0.1'
 
+"""helper functions"""
+def add_padding(features, mfcc_max_padding=174):
+    padded = []
+
+    # Add padding
+    for i in range(len(features)):
+        px = features[i]
+        size = len(px[0])
+        # Add padding if required
+        if (size < mfcc_max_padding):
+            xDiff = mfcc_max_padding - size
+            xLeft = xDiff//2
+            xRight = xDiff-xLeft
+            px = np.pad(px, pad_width=((0,0), (xLeft, xRight)), mode='constant')
+        
+        padded.append(px)
+
+    return padded
+
 """
     PyQT5 Application
 """
@@ -985,7 +1004,13 @@ class ApplicationWindow(QMainWindow):
         #try:
 
         # initialize the tf_interface
-        self.tf_model_interface = tf_interface.TFInterface("/home/charlesedwards/Documents/final_models/MEL_RESNET32_lr-1e-06_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v4.h5")
+        self.tf_model_interface = tf_interface.TFInterface(
+            os.path.join( 
+                root_dir_path, 
+                'tf_models', 
+                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v5.h5'
+            )
+        )
         print(self.tf_model_interface.metadata)
         self.ai_keyed_in = True
 
@@ -1212,8 +1237,9 @@ class ApplicationWindow(QMainWindow):
                 
                 # # convert to dB scale
                 # psd_t = 20 * np.log10(psd)
-
-                stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=None)
+                
+                hop_length = 512
+                stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
                 
                 #convert to db
                 stft_db_abs = librosa.power_to_db(np.abs(stft)) #librosa.amplitude_to_db(np.abs(stft))
@@ -1237,7 +1263,7 @@ class ApplicationWindow(QMainWindow):
 
                 """mel spectrogram""" 
 
-                self.msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                self.msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate, hop_length=hop_length, n_fft=config.CHUNK_SIZE)
                 msg_t = np.transpose(self.msg) # transpose the data because for some reason they are in a weird format idk
                 #msg_t_n = librosa.util.normalize(msg_t)
                 self.mel_spectrogram_img.setImage(msg_t, autoLevels=False)
@@ -1245,7 +1271,7 @@ class ApplicationWindow(QMainWindow):
                 #print(np.min(msg_t), np.max(msg_t))
 
                 """mfcc""" 
-                self.mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate)
+                self.mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
                 mfcc_sg_t = np.transpose(self.mfcc_sg) # transpose the data because for some reason they are in a weird format idk
                 mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
                 self.mfcc_spectrogram_img.setImage(mfcc_t_n, autoLevels=False)
@@ -1340,10 +1366,72 @@ class ApplicationWindow(QMainWindow):
         """perform a classification using the tf_interface"""
         
         #print("performing tf prediction") self.mfcc_sg
-        if self.msg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
+        if self.mfcc_sg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
-            print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
+            #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
+            
+            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) )) # librosa.util.normalize( self.mfcc_sg )
+
+            # num_segments = 5
+            # SAMPLE_RATE = self.audio_handler.stream._rate
+            # TRACK_DURATION = config.MAX_BUFFER_TIME #7 # measured in seconds
+            # SAMPLES_PER_TRACK = SAMPLE_RATE * TRACK_DURATION
+
+            # #num_mfcc=n_mfcc#13
+            # n_fft=1024#2048
+            # hop_length=512#64#128#256#512
+
+            # samples_per_segment = int(SAMPLES_PER_TRACK / num_segments)
+            # #num_mfcc_vectors_per_segment = math.ceil(samples_per_segment / hop_length)
+            
+            # frames_max = 517
+            # segmented_features = []
+
+            # # process all segments of audio file
+            # for d in range(num_segments):
+
+            #     # calculate start and finish sample for current segment
+            #     start = samples_per_segment * d
+            #     finish = start + samples_per_segment
+
+            #     try:
+
+            #         # generate a mel scaled spectrogram
+            #         mel_spectrogram = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer[start:finish], sr=self.audio_handler.stream._rate, n_fft=n_fft, hop_length=hop_length)#self.mfcc_sg[start:finish]
+            #         mel_spectrogram = librosa.util.normalize(mel_spectrogram)
+
+            #         #mel_spectrogram = librosa.feature.melspectrogram(train_metadata.iloc[i]['data'][start:finish], sr=train_metadata.iloc[i]['sr'], n_fft=n_fft, hop_length=hop_length)
+            #         #mel_spectrogram = librosa.power_to_db(np.abs(mel_spectrogram)) #librosa.amplitude_to_db(np.abs(mel_spectrogram))
+            #         #mel_spectrogram = librosa.util.normalize(mel_spectrogram)
+            #         #mel_spectrogram = mel_spectrogram.T # x:time y:frequency
+
+            #         # Save current frame count
+            #         num_frames = mel_spectrogram.shape[1]
+                    
+            #         # Add row (feature / label)
+            #         segmented_features.append(mel_spectrogram)
+
+            #         # Update frames maximum
+            #         if (num_frames > frames_max):
+            #             frames_max = num_frames
+
+            #         # # plot the spectrogram and data side by side
+            #         # plt.figure(figsize=(10, 4))
+            #         # plt.subplot(1, 2, 1)
+            #         # plt.imshow(mel_spectrogram, aspect='auto', origin='lower', cmap='plasma')
+            #         # plt.title(train_metadata.iloc[i]['label'])
+            #         # plt.subplot(1, 2, 2)
+            #         # plt.plot(mel_spectrogram)
+            #         # plt.show()
+
+            #     except Exception as e:
+            #         print(f"Error processing segment {e}, probably not enough data to segment it")
+
+            #     padding = np.array(add_padding(segmented_features, frames_max))
+
+            #     print(frames_max,self.tf_model_interface.predict_multi_mfcc( padding ))
+
         else:
             print("no mfcc or no model")
         #pass

@@ -55,6 +55,27 @@ class TFInterface:
 
         return layers
 
+    def predict_multi_mfcc(self, mffc_data:list):
+        # n_mfcc = 40
+        # sampling_rate = 44100
+        # audio_duration = 4
+        # audio_length = audio_duration * sampling_rate
+        # input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
+
+        # array = np.resize(mffc_data, input_shape)
+        # array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        
+        predictions = self.model.predict([mffc_data])
+        return predictions
+        # index = np.argmax(prediction, axis=None, out=None)
+
+        # if self.metadata is not None:
+            
+        #     #print(index, self.metadata[index], type(self.metadata) )
+        #     return self.metadata[index]
+        # else:
+        #     return np.argmax(prediction)
+
     def predict_mfcc(self, mffc_data):
         """
             Method name: predict
@@ -65,13 +86,19 @@ class TFInterface:
                 The prediction.
         """
 
-        audio_duration = 4
-        #mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
+        #audio_duration = 4
+        ##mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
 
-        n_mfcc = 40#128#40
+        # n_mfcc = 40#128#40
+        # sampling_rate = 44100
+        # audio_length = audio_duration * sampling_rate
+        # input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+
+        n_mfcc = 40
         sampling_rate = 44100
+        audio_duration = 4
         audio_length = audio_duration * sampling_rate
-        input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+        input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
 
         array = np.resize(mffc_data, input_shape)
         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
@@ -100,10 +127,16 @@ class TFInterface:
         audio_duration = 4
         #mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
 
-        n_mfcc = 128#40
+        # n_mfcc = 128#40
+        # sampling_rate = 44100
+        # audio_length = audio_duration * sampling_rate
+        # input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+
+        n_mfcc = 40
         sampling_rate = 44100
+        audio_duration = 4
         audio_length = audio_duration * sampling_rate
-        input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
+        input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
 
         array = np.resize(mel_data, input_shape)
         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
