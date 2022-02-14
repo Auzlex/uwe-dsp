@@ -1018,8 +1018,8 @@ class ApplicationWindow(QMainWindow):
         #     print(f"Error when initializing the TFInterface {e}")
 
         # initialize the 3d visualizer
-        if len(self.tf_model_interface.layers) > 0:
-            self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
+        # if len(self.tf_model_interface.layers) > 0:
+        #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
         #self.tf_model_interface = None
 
@@ -1243,9 +1243,15 @@ class ApplicationWindow(QMainWindow):
                 
                 #convert to db
                 stft_db_abs = librosa.power_to_db(np.abs(stft)) #librosa.amplitude_to_db(np.abs(stft))
+                
                 stft_db_abs_t = np.transpose(stft_db_abs)
                 #psd_t = psd_t[len(psd_t)-1]
                 #print(psd_t.shape,  self.spectrogram_img_array.shape)
+
+                # raw data (not normalized) -> stft
+                # stft (power to db) or (amplitude to db)
+                # stft into melspectrogram or mfcc
+                # after mel or mfcc normalize
                 
                 self.spectrogram_img.setImage(stft_db_abs_t, autoLevels=False)
 
@@ -1264,8 +1270,8 @@ class ApplicationWindow(QMainWindow):
                 """mel spectrogram""" 
 
                 self.msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate, hop_length=hop_length, n_fft=config.CHUNK_SIZE)
-                msg_t = np.transpose(self.msg) # transpose the data because for some reason they are in a weird format idk
-                #msg_t_n = librosa.util.normalize(msg_t)
+                msg_t = librosa.util.normalize(self.msg)
+                msg_t = np.transpose(msg_t) # transpose the data because for some reason they are in a weird format idk
                 self.mel_spectrogram_img.setImage(msg_t, autoLevels=False)
 
                 #print(np.min(msg_t), np.max(msg_t))
