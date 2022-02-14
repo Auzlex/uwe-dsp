@@ -1008,7 +1008,7 @@ class ApplicationWindow(QMainWindow):
             os.path.join( 
                 root_dir_path, 
                 'tf_models', 
-                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v5.h5'
+                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v6.h5'
             )
         )
         print(self.tf_model_interface.metadata)
@@ -1279,8 +1279,8 @@ class ApplicationWindow(QMainWindow):
                 """mfcc""" 
                 self.mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
                 mfcc_sg_t = np.transpose(self.mfcc_sg) # transpose the data because for some reason they are in a weird format idk
-                mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
-                self.mfcc_spectrogram_img.setImage(mfcc_t_n, autoLevels=False)
+                self.mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
+                self.mfcc_spectrogram_img.setImage(self.mfcc_t_n, autoLevels=False)
 
                 #print(np.min(mfcc_sg_t), np.max(mfcc_sg_t))
 
@@ -1372,12 +1372,12 @@ class ApplicationWindow(QMainWindow):
         """perform a classification using the tf_interface"""
         
         #print("performing tf prediction") self.mfcc_sg
-        if self.mfcc_sg is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
+        if self.mfcc_sg is not None and self.mfcc_t_n is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
             #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
             
-            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) )) # librosa.util.normalize( self.mfcc_sg )
+            print(self.tf_model_interface.predict_mfcc( self.mfcc_t_n )) # librosa.util.normalize( self.mfcc_sg )
 
             # num_segments = 5
             # SAMPLE_RATE = self.audio_handler.stream._rate
