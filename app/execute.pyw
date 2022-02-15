@@ -1008,7 +1008,7 @@ class ApplicationWindow(QMainWindow):
             os.path.join( 
                 root_dir_path, 
                 'tf_models', 
-                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v6.h5'
+                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v7.h5'
             )
         )
         print(self.tf_model_interface.metadata)
