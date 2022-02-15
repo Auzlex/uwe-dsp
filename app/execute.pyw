@@ -24,6 +24,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5.QtCore import QTimer#QSize, QTimer, 
 from PyQt5.QtWidgets import *
+from PyQt5.QtChart import * # this is used for bar charts
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 from pyqtgraph.colormap import ColorMap
 from pyqtgraph import Vector
@@ -226,6 +227,12 @@ class ApplicationWindow(QMainWindow):
 
             except Exception as e:
                 print(f"Error when initializing the TFInterface {e}")
+
+            if self.tf_model_interface.metadata is not None:
+                
+                # update labels of the label prediction plot
+                self.chart_axis.clear()
+                self.chart_axis.append(self.tf_model_interface.metadata)
 
             # initialize the 3d visualizer
             if len(self.tf_model_interface.layers) > 0:
@@ -904,6 +911,43 @@ class ApplicationWindow(QMainWindow):
         self.glvw.sizeHint = lambda: pg.QtCore.QSize(100, 100)
         self.glvw.setSizePolicy(p1.sizePolicy())
 
+        """prediction label inspector"""
+        
+        self.chart = QChart()
+        #self.chart.addSeries(series)
+        self.chart.setTitle("Label Predictions".upper())
+        self.chart.setTheme(QChart.ChartThemeDark)
+        self.chart.setContentsMargins(0, 0, 0, 0)
+        self.chart.setBackgroundRoundness(0)
+        self.chart.setAnimationOptions(QChart.SeriesAnimations)
+        self.chart.setDropShadowEnabled(False)
+        self.chart.setBackgroundVisible(False)
+
+        # create axis
+
+        self.chart_series = QBarSeries()#'QPercentBarSeries()
+        
+        label = [ "Waiting for labels" ]
+        self.chart_axis = QBarCategoryAxis()
+        self.chart_axis.setLabelsAngle(90)
+        self.chart_axis.setLabelsEditable(True)
+        self.chart_axis.append(label)
+
+        self.chart.createDefaultAxes()
+        self.chart.setAxisX(self.chart_axis, self.chart_series)
+
+        y_axis = QValueAxis()
+        y_axis.setRange(0, 1)
+        y_axis.setTitleText("pConfidence")
+        self.chart.setAxisY(y_axis)
+       
+        self.plabel_pyqtplot_rendertarget = QChartView(self.chart)
+
+        # self.plabel_pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window 2".upper())
+
+        # # add a canvas for plotting our bar chart
+        # self.plabel_canvas = self.plabel_pyqtplot_rendertarget.addPlot(title="Label Predictions".upper(), row=0, col=0)
+
         """Setup, GUI layout"""
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
@@ -931,12 +975,19 @@ class ApplicationWindow(QMainWindow):
 
         # create the layout
         Overall_Layout = QGridLayout(central_widget)
-        Overall_Layout.setRowStretch(3, 3) # 3, 3)
+
+        #Overall_Layout.setRowStretch(1, 0)
+        Overall_Layout.setRowStretch(2, 1)
+        Overall_Layout.setRowStretch(3, 3)
+
+        #Overall_Layout.setRowStretch(3, 3) # 3, 3)
         Overall_Layout.addWidget( self.indicator_text_label, 1, 1 )
         Overall_Layout.addWidget( self.textEdit, 2, 1 )
         Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
-        #Overall_Layout.setRowStretch(2, 3)
+        #Overall_Layout.setRowStretch(2, 1)
         #Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
+        Overall_Layout.addWidget( self.plabel_pyqtplot_rendertarget, 2, 2 )
+        #Overall_Layout.setRowStretch(2, 3)
         Overall_Layout.addWidget( self.glvw, 3, 2 ) # append the 3d plot to the layout
 
         # setup the window layout
@@ -1012,6 +1063,17 @@ class ApplicationWindow(QMainWindow):
             )
         )
         print(self.tf_model_interface.metadata)
+        if self.tf_model_interface.metadata is not None:
+            self.chart_axis.clear()
+            self.chart_axis.append(self.tf_model_interface.metadata)
+
+
+            
+            # # update the x axis of the label prediction confidence bar chart 
+            # self.chart_axis.clear()
+            # self.chart_axis.append(self.tf_model_interface.metadata)
+            # self.chart.setAxisX(self.chart_axis)
+
         self.ai_keyed_in = True
 
         # except Exception as e:
@@ -1378,7 +1440,11 @@ class ApplicationWindow(QMainWindow):
             #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
             
-            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) )) # librosa.util.normalize( self.mfcc_sg )
+            prediction = self.tf_model_interface.predict_mfcc( self.mfcc_t_n )
+
+            if self.tf_model_interface.metadata is not None and prediction is not None:
+                self.series.clear()
+                self.series.append( prediction )
 
             # num_segments = 5
             # SAMPLE_RATE = self.audio_handler.stream._rate

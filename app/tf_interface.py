@@ -38,7 +38,7 @@ class TFInterface:
         self.metadata = json.loads(self.metadata)#json.loads('["Acoustic_guitar", "Applause", "Bark", "Bass_drum", "Burping_or_eructation", "Bus", "Cello", "Chime", "Clarinet", "Computer_keyboard", "Cough", "Cowbell", "Double_bass", "Drawer_open_or_close", "Electric_piano", "Fart", "Finger_snapping", "Fireworks", "Flute", "Glockenspiel", "Gong", "Gunshot_or_gunfire", "Harmonica", "Hi-hat", "Keys_jangling", "Knock", "Laughter", "Meow", "Microwave_oven", "Oboe", "Saxophone", "Scissors", "Shatter", "Snare_drum", "Squeak", "Tambourine", "Tearing", "Telephone", "Trumpet", "Violin_or_fiddle", "Writing"]')#json.loads(self.metadata)
         self.layers = self._model2layers()
 
-        
+
     def _model2layers(self):
         """fatch layers name and shape from model"""
         layers = []
@@ -64,13 +64,13 @@ class TFInterface:
 
         # array = np.resize(mffc_data, input_shape)
         # array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
-        
+
         predictions = self.model.predict([mffc_data])
         return predictions
         # index = np.argmax(prediction, axis=None, out=None)
 
         # if self.metadata is not None:
-            
+
         #     #print(index, self.metadata[index], type(self.metadata) )
         #     return self.metadata[index]
         # else:
@@ -95,24 +95,28 @@ class TFInterface:
         # input_shape = (n_mfcc, 1 + int(np.floor(audio_length/512)), 1)
 
         n_mfcc = 40
-        sampling_rate = 44100
-        audio_duration = 4
-        audio_length = audio_duration * sampling_rate
+        # sampling_rate = 44100
+        # audio_duration = 4
+        # audio_length = audio_duration * sampling_rate
         input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
 
         array = np.resize(mffc_data, input_shape)
-        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
-        
+        array = array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+
+        #self.model.layers[0].input_shape
+
         prediction = self.model.predict([array])
 
-        index = np.argmax(prediction, axis=None, out=None)
+        return prediction
 
-        if self.metadata is not None:
-            
-            #print(index, self.metadata[index], type(self.metadata) )
-            return self.metadata[index]
-        else:
-            return np.argmax(prediction)
+        # index = np.argmax(prediction, axis=None, out=None)
+
+        # if self.metadata is not None:
+
+        #     #print(index, self.metadata[index], type(self.metadata) )
+        #     return self.metadata[index]
+        # else:
+        #     return np.argmax(prediction)
 
     def predict_mel(self, mel_data):
         """
@@ -140,13 +144,13 @@ class TFInterface:
 
         array = np.resize(mel_data, input_shape)
         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
-        
+
         prediction = self.model.predict([array])
 
         index = np.argmax(prediction, axis=None, out=None)
 
         if self.metadata is not None:
-            
+
             #print(index, self.metadata[index], type(self.metadata) )
             return self.metadata[index]
         else:
@@ -189,16 +193,16 @@ class TFLiteInterface:
         print(f"Initializing TensorFlow Lite Model: {str(model_path)}")
         self.model_path = model_path
         self.model = tf.lite.Interpreter(model_path=self.model_path)
-        
+
         input_details = self.model.get_input_details()
         self.waveform_input_index = input_details[0]['index']
         output_details = self.model.get_output_details()
         self.scores_output_index = output_details[0]['index']
-        
+
         self.resize_tensor_input(37152)
-        
+
         print(self.waveform_input_index, self.scores_output_index)
-        
+
         self.model.allocate_tensors()
 
 
