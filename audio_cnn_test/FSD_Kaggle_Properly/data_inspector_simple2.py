@@ -222,26 +222,30 @@ def extract_audio_feature(raw_audio_data, sr=None, feature_type=None, n_fft=1024
         print(f"sr is None")
         return p_data
 
-    # raw data (not normalized) -> stft
-    stft_data = librosa.stft(raw_audio_data, n_fft=n_fft, hop_length=hop_length)
-
-    # convert to db
-    stft_db = librosa.amplitude_to_db(np.abs(stft_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(stft_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
-
     if feature_type == 'mfcc':
 
         # mfcc extract features from stft
-        p_data = librosa.feature.mfcc(S=stft_db, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length, n_fft=n_fft)
+        #p_data = librosa.feature.mfcc(S=stft_db, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length, n_fft=n_fft) # this is wrong
+        p_data = librosa.feature.mfcc(y=raw_audio_data, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length, n_fft=n_fft)
 
     elif feature_type == 'mel':
+
+        # raw data (not normalized) -> stft
+        stft_data = librosa.stft(raw_audio_data, n_fft=n_fft, hop_length=hop_length)
+
+        # convert to db
+        stft_db = librosa.amplitude_to_db(np.abs(stft_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(stft_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
 
         # mel extract features from stft
         p_data = librosa.feature.melspectrogram(S=stft_db, sr=sr, hop_length=hop_length, n_fft=n_fft)
 
     elif feature_type == 'stft':
 
-        # mel extract features from stft
-        p_data = stft_db
+        # stft
+        stft_data = librosa.stft(raw_audio_data, n_fft=n_fft, hop_length=hop_length)
+
+        # convert to db
+        p_data = librosa.amplitude_to_db(np.abs(stft_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(stft_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
 
     else:
 
@@ -648,14 +652,14 @@ def extract_mfcc_features(metadata_pd, n_mfcc=40, base_name=None, max_frames=0):
         
     print("Finished: {}/{} frames_max {}".format(index, total_samples, frames_max))
     # Add padding to features with less than frames than frames_max
-    padded_features = np.array(helper.add_padding(features, frames_max))
+    padded_features = helper.add_padding(features, frames_max)#np.array(helper.add_padding(features, frames_max))
 
-    new_padding = []
-    # for every feature in padded_features tranpose and replace padded features
-    for i in range(len(padded_features)):
-        new_padding.append(padded_features[i].T)
+    # new_padding = []
+    # # for every feature in padded_features tranpose and replace padded features
+    # for i in range(len(padded_features)):
+    #     new_padding.append(padded_features[i].T)
 
-    padded_features = np.array(new_padding)
+    # padded_features = np.array(new_padding)
 
     # Verify shapes
     print("Raw features length: {}".format(len(features)))
@@ -664,7 +668,7 @@ def extract_mfcc_features(metadata_pd, n_mfcc=40, base_name=None, max_frames=0):
     #print(f"Shape of padded features: {padded_features.shape}, Shape of labels: {len(labels)}")
 
     # Convert features (X) and labels (y) to Numpy arrays
-    X = padded_features # np.array(padded_features)
+    X = np.array(padded_features)# padded_features # np.array(padded_features)
     y = np.array(labels)
 
     data_npy_folder = os.path.join(dataset_root_dir, 'data')
@@ -681,12 +685,152 @@ def extract_mfcc_features(metadata_pd, n_mfcc=40, base_name=None, max_frames=0):
 
     print(f"Finished Extraction of MFCC features for base name: {base_name} total, {len(metadata_pd)} files")
     return frames_max
+
+def extract_raw_features(metadata_pd, n_mfcc=40, base_name=None, max_frames=0):
+
+    if base_name is None:
+        print("base_name is None")
+        return
+
+    base_name = 'raw-' + base_name
+
+    print(f"Starting Extraction of RAW features for base name: {base_name} total, {len(metadata_pd)} files")
+
+    # Iterate through all audio files and extract MFCC
+    features = []
+    labels = []
+    frames_max = max_frames
+    counter = 0
+    total_samples = len(metadata_pd)
+    #mfcc_max_padding = 0
+
+    for index, row in metadata_pd.iterrows():
+        class_label = row["label"]
+
+        num_segments = 5
+
+        SAMPLE_RATE = row['sr']
+        TRACK_DURATION = row['duration'] #7 # measured in seconds
+        SAMPLES_PER_TRACK = SAMPLE_RATE * TRACK_DURATION
+
+        num_mfcc=n_mfcc#13
+        n_fft=1024#2048
+        hop_length=512#64#128#256#512
+
+        samples_per_segment = int(SAMPLES_PER_TRACK / num_segments)
+        #num_mfcc_vectors_per_segment = math.ceil(samples_per_segment / hop_length)
+
+        # Extract MFCC data
+        #mfcc = librosa.feature.mfcc(row['data'], sr=row['sr'], n_mfcc=n_mfcc)
+        
+        # normalize the mfcc between -1 and 1
+        #normalized_mfcc = librosa.util.normalize(mfcc)
+
+        # process all segments of audio file
+        # for d in range(num_segments):
+
+        #     # calculate start and finish sample for current segment
+        #     start = samples_per_segment * d
+        #     finish = start + samples_per_segment
+
+        #     try:
+        #         # extract mfcc
+
+        mfcc = np.array(row['data'])#[start:finish]#extract_audio_feature(row['data'][start:finish], sr=row['sr'], feature_type='mfcc')
+
+        # mel_spectrogram = librosa.feature.melspectrogram(row['data'][start:finish], sr=row['sr'], n_fft=n_fft, hop_length=hop_length)
+                # mel_spectrogram = librosa.power_to_db(np.abs(mel_spectrogram))#librosa.power_to_db(np.abs(mel_spectrogram)) #librosa.amplitude_to_db(np.abs(mel_spectrogram))
+                # #mel_spectrogram = librosa.util.normalize(mel_spectrogram)
+                # mfcc = librosa.feature.mfcc(S=mel_spectrogram, sr=row['sr'], n_mfcc=num_mfcc, n_fft=n_fft, hop_length=hop_length)
+                # mfcc = librosa.util.normalize(mfcc) # normalize the data
+                # mfcc = mfcc.T # transpose the data to x:time y:frequency
+  
+                # # Should we require padding
+                # shape = mfcc.shape[1]
+                # if (mfcc_max_padding > 0 & shape < mfcc_max_padding):
+                #     xDiff = mfcc_max_padding - shape
+                #     xLeft = xDiff//2
+                #     xRight = xDiff-xLeft
+                #     mfcc = np.pad(mfcc, pad_width=((0,0), (xLeft, xRight)), mode='constant')
+
+        # Save current frame count
+        num_frames = mfcc.shape[1]
+        
+        # Add row (feature / label)
+        features.append(mfcc)
+        labels.append(class_label)
+
+        # Update frames maximum
+        if (num_frames > frames_max):
+            frames_max = num_frames
+
+            #     # # display the spectrogram and data side by side
+            #     # plt.figure(figsize=(10, 4))
+            #     # plt.subplot(1, 2, 1)
+            #     # plt.imshow(mfcc, aspect='auto', origin='lower', cmap="inferno")
+            #     # plt.title(train_metadata.iloc[i]['label'])
+            #     # plt.subplot(1, 2, 2)
+            #     # plt.plot(mfcc)
+            #     # plt.show()
+            # except Exception as e:
+            #     print(f"Error processing segment {row['fname']} {e}, probably not enough data to segment it")
+
+        
+
     
+
+        # Notify update every N files
+        if (counter == 500):
+            print("Status: {}/{}".format(index+1, total_samples))
+            counter = 0
+
+        counter += 1
+        
+    print("Finished: {}/{} frames_max {}".format(index, total_samples, frames_max))
+    # Add padding to features with less than frames than frames_max
+    padded_features = helper.add_padding(features, frames_max)#np.array(helper.add_padding(features, frames_max))
+
+    # new_padding = []
+    # # for every feature in padded_features tranpose and replace padded features
+    # for i in range(len(padded_features)):
+    #     new_padding.append(padded_features[i].T)
+
+    # padded_features = np.array(new_padding)
+
+    # Verify shapes
+    print("Raw features length: {}".format(len(features)))
+    print("Padded features length: {}".format(len(padded_features)))
+    print("Feature labels length: {}".format(len(labels)))
+    #print(f"Shape of padded features: {padded_features.shape}, Shape of labels: {len(labels)}")
+
+    # Convert features (X) and labels (y) to Numpy arrays
+    X = np.array(padded_features)# padded_features # np.array(padded_features)
+    y = np.array(labels)
+
+    data_npy_folder = os.path.join(dataset_root_dir, 'data')
+
+    # Optionally save the features to disk
+    np.save( os.path.join(data_npy_folder, f"X-{base_name}" ), X)
+    np.save( os.path.join(data_npy_folder, f"y-{base_name}" ), y)
+
+    # free up memory
+    del X
+    del y
+    del features
+    del labels
+
+    print(f"Finished Extraction of RAW features for base name: {base_name} total, {len(metadata_pd)} files")
+    return frames_max
+
+max_frames = extract_raw_features(metadata, n_mfcc=40, base_name='merged')
+print(f"\n\nmax frames: {max_frames}\n\n")  
 
 # %%
 #max_frames = extract_mfcc_features(train_metadata, n_mfcc=40, base_name='train') # 517 The reason I want to pass through max frames to be the same is because I want to use the same max frames for all the features
-# max_frames = extract_mfcc_features(metadata, n_mfcc=40, base_name='merged')
-# print(f"\n\nmax frames: {max_frames}\n\n")
+
+#max_frames = extract_mfcc_features(metadata, n_mfcc=40, base_name='merged')
+#print(f"\n\nmax frames: {max_frames}\n\n")
+
 #extract_mfcc_features(test_metadata, n_mfcc=40, base_name='test', max_frames=517)
 
 # %% [markdown]
@@ -788,12 +932,12 @@ def extract_mel_spectrogram_features(metadata_pd, n_fft=1024, base_name=None, ma
     # Add padding to features with less than frames than frames_max
     padded_features = helper.add_padding(features, frames_max)
 
-    new_padding = []
-    # for every feature in padded_features tranpose and replace padded features
-    for i in range(len(padded_features)):
-        new_padding.append(padded_features[i].T)
+    # new_padding = []
+    # # for every feature in padded_features tranpose and replace padded features
+    # for i in range(len(padded_features)):
+    #     new_padding.append(padded_features[i].T)
 
-    padded_features = np.array(new_padding)
+    # padded_features = np.array(new_padding)
 
     # Verify shapes
     print("Raw features length: {}".format(len(features)))
@@ -802,7 +946,7 @@ def extract_mel_spectrogram_features(metadata_pd, n_fft=1024, base_name=None, ma
     #print(f"Shape of padded features: {padded_features.shape}, Shape of labels: {len(labels)}")
 
     # Convert features (X) and labels (y) to Numpy arrays
-    X = padded_features#np.array(padded_features)
+    X = np.array(padded_features)#padded_features#np.array(padded_features)
     y = np.array(labels)
 
     data_npy_folder = os.path.join(dataset_root_dir, 'data')
@@ -823,6 +967,7 @@ def extract_mel_spectrogram_features(metadata_pd, n_fft=1024, base_name=None, ma
 # %%
 # max_frames = extract_mel_spectrogram_features(train_metadata, base_name='train')
 # extract_mel_spectrogram_features(test_metadata, base_name='test', max_frames=max_frames)
-max_frames = extract_mel_spectrogram_features(metadata, base_name='merged')
-print(f"\n\nmax frames: {max_frames}\n\n")
+
+#max_frames = extract_mel_spectrogram_features(metadata, base_name='merged')
+#print(f"\n\nmax frames: {max_frames}\n\n")
 

@@ -1008,7 +1008,7 @@ class ApplicationWindow(QMainWindow):
             os.path.join( 
                 root_dir_path, 
                 'tf_models', 
-                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v7.h5'
+                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v8.h5'
             )
         )
         print(self.tf_model_interface.metadata)
@@ -1277,7 +1277,8 @@ class ApplicationWindow(QMainWindow):
                 #print(np.min(msg_t), np.max(msg_t))
 
                 """mfcc""" 
-                self.mfcc_sg = librosa.feature.mfcc(S=stft_db_abs, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
+                #stft_db_abs
+                self.mfcc_sg = librosa.feature.mfcc(S=self.msg, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
                 mfcc_sg_t = np.transpose(self.mfcc_sg) # transpose the data because for some reason they are in a weird format idk
                 self.mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
                 self.mfcc_spectrogram_img.setImage(self.mfcc_t_n, autoLevels=False)
@@ -1377,7 +1378,7 @@ class ApplicationWindow(QMainWindow):
             #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
             
-            print(self.tf_model_interface.predict_mfcc( self.mfcc_t_n )) # librosa.util.normalize( self.mfcc_sg )
+            print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) )) # librosa.util.normalize( self.mfcc_sg )
 
             # num_segments = 5
             # SAMPLE_RATE = self.audio_handler.stream._rate
@@ -1438,8 +1439,6 @@ class ApplicationWindow(QMainWindow):
 
             #     print(frames_max,self.tf_model_interface.predict_multi_mfcc( padding ))
 
-        else:
-            print("no mfcc or no model")
         #pass
         # try:
         #     if self.tf_model_interface is not None:
