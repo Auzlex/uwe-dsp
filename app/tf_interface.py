@@ -88,8 +88,8 @@ class TFInterface:
                 The prediction.
         """
 
-        #audio_duration = 4
-        ##mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
+        # audio_duration = 4
+        # mffc_data = mffc_data[0:config.CHUNK_SIZE * config.SAMPLE_RATE * audio_duration]
 
         # n_mfcc = 40#128#40
         # sampling_rate = 44100
@@ -102,8 +102,13 @@ class TFInterface:
         # audio_length = audio_duration * sampling_rate
         input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
 
-        array = np.resize(mffc_data, input_shape)
-        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])#array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        # pad the mffcc_data array to the input shape
+        array = np.pad(mffc_data, (0, input_shape[1] - mffc_data.shape[0]), 'constant')
+        
+        array = np.resize(array, input_shape)
+        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        #array = mffc_data.resize(input_shape, refcheck=False) #np.resize(mffc_data, input_shape)
+        #array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])#array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
 
         #self.model.layers[0].input_shape
 

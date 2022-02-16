@@ -24,7 +24,6 @@ from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5.QtCore import QTimer#QSize, QTimer, 
 from PyQt5.QtWidgets import *
-from PyQt5.QtChart import * # this is used for bar charts
 from PyQt5.QtGui import QIcon, QTextCursor, QPalette
 from pyqtgraph.colormap import ColorMap
 from pyqtgraph import Vector
@@ -331,6 +330,24 @@ class ApplicationWindow(QMainWindow):
         # m1.translate(0, 0, 1)
         # self.glvw.addItem(m1)
 
+        vertexes = np.array([[1, 0, 0], #0
+                     [0, 0, 0], #1
+                     [0, 1, 0], #2
+                     [0, 0, 1], #3
+                     [1, 1, 0], #4
+                     [1, 1, 1], #5
+                     [0, 1, 1], #6
+                     [1, 0, 1]])#7
+
+        faces = np.array([[1,0,7], [1,3,7],
+                  [1,2,4], [1,0,4],
+                  [1,2,6], [1,3,6],
+                  [0,4,5], [0,7,5],
+                  [2,4,5], [2,6,5],
+                  [3,6,5], [3,7,5]])
+
+        colors = np.array([[1,1,1,1] for i in range(12)])
+
         model_shape_parent = [
             
         ]
@@ -403,6 +420,22 @@ class ApplicationWindow(QMainWindow):
 
             m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=colour, size=5, pxMode=True)
             self.glvw.addItem(m)
+
+            # cube = gl.GLMeshItem(
+            #     vertexes=vertexes, 
+            #     faces=faces, 
+            #     faceColors=colors,
+            #     drawEdges=True, 
+            #     edgeColor=(0, 0, 0, 1)
+            # )
+
+            # cube.resetTransform()
+            # cube.translate(0, (next_shape_offset + ( i * 5 )) - (total_nn_shape/2), 0)
+
+            # # x z y
+            # cube.scale( n1, n2, n3, local=True)
+
+            # self.glvw.addItem(cube)
             
         #self.grid = gl.GLGridItem(size=QtGui.QVector3D(int(next_shape_offset/2) * 0.025,(next_shape_offset * 0.025) * 2,1))
         self.grid = gl.GLGridItem()
@@ -914,6 +947,40 @@ class ApplicationWindow(QMainWindow):
         m1.translate(0, 0, 1)
         self.glvw.addItem(m1)
 
+        # vertexes = np.array([[1, 0, 0], #0
+        #              [0, 0, 0], #1
+        #              [0, 1, 0], #2
+        #              [0, 0, 1], #3
+        #              [1, 1, 0], #4
+        #              [1, 1, 1], #5
+        #              [0, 1, 1], #6
+        #              [1, 0, 1]])#7
+
+        # faces = np.array([[1,0,7], [1,3,7],
+        #           [1,2,4], [1,0,4],
+        #           [1,2,6], [1,3,6],
+        #           [0,4,5], [0,7,5],
+        #           [2,4,5], [2,6,5],
+        #           [3,6,5], [3,7,5]])
+
+        # colors = np.array([[1,0,0,1] for i in range(12)])
+
+        # cube = gl.GLMeshItem(
+        #     vertexes=vertexes, 
+        #     faces=faces, 
+        #     faceColors=colors,
+        #     drawEdges=True, 
+        #     edgeColor=(0, 0, 0, 1)
+        # )
+
+        # cube.resetTransform()
+        # cube.translate(0, 0, 0)
+
+        # # x z y
+        # cube.scale( 1, 2, 1, local=True)
+
+        # self.glvw.addItem(cube)
+
         # np.random.normal(size=(2500, 3))
 
         # create empty numpy array with 3 dims 
@@ -968,65 +1035,6 @@ class ApplicationWindow(QMainWindow):
         # adding bargraph item to the plot window
         self.barplot.addItem(self.bargraph)
 
-        # self.chart = QChart()
-        # #self.chart.addSeries(series)
-        # self.chart.setTitle("Label Predictions".upper())
-        # self.chart.setTheme(QChart.ChartThemeDark)
-        # self.chart.setContentsMargins(0, 0, 0, 0)
-        # self.chart.setBackgroundRoundness(0)
-        # self.chart.setAnimationOptions(QChart.SeriesAnimations)
-        # self.chart.setDropShadowEnabled(False)
-        # self.chart.setBackgroundVisible(False)
-
-        
-        # # import random
-
-        # # set0 = QBarSet('X0')
-        # # # set1 = QBarSet('X1')
-        # # # set2 = QBarSet('X2')
-        # # # set3 = QBarSet('X3')
-        # # # set4 = QBarSet('X4')
-
-        # # set0.append([random.randint(0, 10) for i in range(6)])
-        # # # set1.append([random.randint(0, 10) for i in range(6)])
-        # # # set2.append([random.randint(0, 10) for i in range(6)])
-        # # # set3.append([random.randint(0, 10) for i in range(6)])
-        # # # set4.append([random.randint(0, 10) for i in range(6)])
-
-        # set0 = QBarSet('X0')
-        # set0.append(0.5)
-        # self.chart_series = QBarSeries()
-        # self.chart_series.append(set0)
-
-        # # create axis
-
-        # #self.chart_series = QBarSeries()#'QPercentBarSeries()
-
-        # #self.chart_series.append(QBarSet("X0").append(0.5))
-        
-        # label = [ "Waiting for labels" ]
-        # self.chart_axis = QBarCategoryAxis()
-        # self.chart_axis.setLabelsAngle(0)
-        # self.chart_axis.setLabelsEditable(True)
-        # self.chart_axis.append(label)
-
-        # self.chart.createDefaultAxes()
-        # self.chart.addSeries(self.chart_series)
-        # self.chart.legend().setVisible(False)
-        # self.chart.setAxisX(self.chart_axis, self.chart_series)
-
-        # y_axis = QValueAxis()
-        # y_axis.setRange(0, 1)
-        # y_axis.setTitleText("pConfidence")
-        # self.chart.setAxisY(y_axis)
-
-        # self.plabel_pyqtplot_rendertarget = QChartView(self.chart)
-
-        # self.plabel_pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window 2".upper())
-
-        # # add a canvas for plotting our bar chart
-        # self.plabel_canvas = self.plabel_pyqtplot_rendertarget.addPlot(title="Label Predictions".upper(), row=0, col=0)
-
         """Setup, GUI layout"""
         # Setup a timer to trigger the redraw by calling update_plot.
         self.timer = QTimer()
@@ -1040,7 +1048,7 @@ class ApplicationWindow(QMainWindow):
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.ai_classify_timer = QTimer()
-        self.ai_classify_timer.setInterval(1000) # 500
+        self.ai_classify_timer.setInterval(500) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -1133,29 +1141,17 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize an instance of the tf_interface
         #try:
 
-        # # initialize the tf_interface
-        # self.tf_model_interface = tf_interface.TFInterface(
-        #     os.path.join( 
-        #         root_dir_path, 
-        #         'tf_models', 
-        #         'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v8.h5'
-        #     )
-        # )
-        # print(self.tf_model_interface.metadata)
-        # self.refresh_bar_chart()
-        # # if self.tf_model_interface.metadata is not None:
-        # #     self.chart_axis.clear()
-        # #     self.chart_axis.append(self.tf_model_interface.metadata)
-
-
-            
-        #     # # update the x axis of the label prediction confidence bar chart 
-        #     # self.chart_axis.clear()
-        #     # self.chart_axis.append(self.tf_model_interface.metadata)
-        #     # self.chart.setAxisX(self.chart_axis)
-
-        # self.ai_keyed_in = True
-
+        # initialize the tf_interface
+        self.tf_model_interface = tf_interface.TFInterface(
+            os.path.join( 
+                root_dir_path, 
+                'tf_models', 
+                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v8.h5'
+            )
+        )
+        print(self.tf_model_interface.metadata)
+        self.refresh_bar_chart()
+        
         # except Exception as e:
         #     print(f"Error when initializing the TFInterface {e}")
 
@@ -1163,6 +1159,7 @@ class ApplicationWindow(QMainWindow):
         # if len(self.tf_model_interface.layers) > 0:
         #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
+        self.ai_keyed_in = True
         #self.tf_model_interface = None
 
         # attempt to initialize an instance of the tf_interface
@@ -1374,8 +1371,17 @@ class ApplicationWindow(QMainWindow):
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
             
             self.prediction = self.tf_model_interface.predict_mfcc( self.mfcc_t_n )
+            if self.tf_model_interface.metadata is not None:
+                print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
 
-            self.bargraph.setOpts(height=self.prediction[0])
+        # if self.metadata is not None:
+
+        #     #print(index, self.metadata[index], type(self.metadata) )
+        #     return self.metadata[index]
+
+            if self.tf_model_interface is not None:
+                if self.tf_model_interface.metadata is not None and self.prediction is not None:
+                    self.bargraph.setOpts(height=self.prediction[0])
 
             
 
@@ -1412,26 +1418,6 @@ class ApplicationWindow(QMainWindow):
             
             tf_thread = threading.Thread(target=self.perform_tf_classification)
             tf_thread.start()
-
-            if self.tf_model_interface is not None:
-                if self.tf_model_interface.metadata is not None and self.prediction is not None:
-
-                    a1 = self.chart.axisX(self.chart_series)
-                    
-                    # for x,p in enumerate(self.prediction.tolist()[0]):
-                    #     a1.insert(x)
-                    #print(a1.replace())
-
-                    # self.chart_series.clear()
-
-                    # for p in self.prediction.tolist()[0]:
-
-                    #     bar = QBarSet("A")
-                    #     bar.append(p)
-                    #     self.chart_series.append( bar )
-
-                    #self.chart_series.append( prediction.tolist() )
-                    #print(self.prediction.tolist()[0])
 
     def closeEvent(self,event):
         """close event is invoked on close but we want to prevent accidental close"""
