@@ -101,6 +101,9 @@ class ApplicationWindow(QMainWindow):
         super().__init__() # invoke derived class constructor
         self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
 
+        self.tf_model_interface = None
+
+        self.prediction = None # stores the prediction
         self.ai_keyed_in = False # determines if the AI is keyed in
 
         self.setup_user_interface() # invoke the ui initialize
@@ -205,6 +208,38 @@ class ApplicationWindow(QMainWindow):
             # make sure the device id is 
             self.audio_handler.adjust_stream(selected_device_id, supported_srs[value])
 
+    def refresh_bar_chart(self):
+
+        """invoked when we want to refresh the bar chart for new information, usually invoked on new h5 model load"""
+
+        if self.tf_model_interface.metadata is not None:
+
+            labels = self.tf_model_interface.metadata
+            xdict = dict(enumerate(labels))
+
+            y = [0] * len(labels)
+            self.barplot.setXRange(0, len(labels)+1)
+            self.bargraph.setOpts(x=list(xdict.keys()), height=y)
+            
+            ax = self.barplot.getAxis("bottom")
+            ax.setTicks( [xdict.items()] )
+
+
+            #https://stackoverflow.com/questions/62799886/dynamically-updating-a-qchart
+
+            # # update labels of the label prediction plot
+            # self.chart_axis.clear()
+            # self.chart_axis.setLabelsAngle(90)
+            # self.chart_axis.append(self.tf_model_interface.metadata)
+
+            # self.chart_series.clear()
+
+            # for p in self.tf_model_interface.metadata:
+
+            #     bar = QBarSet("A")
+            #     bar.append(0.5)
+            #     self.chart_series.append( bar )
+
     def fetch_h5_model(self):
         print("starting -> QFileDialog")
         options = QFileDialog.Options()
@@ -228,11 +263,7 @@ class ApplicationWindow(QMainWindow):
             except Exception as e:
                 print(f"Error when initializing the TFInterface {e}")
 
-            if self.tf_model_interface.metadata is not None:
-                
-                # update labels of the label prediction plot
-                self.chart_axis.clear()
-                self.chart_axis.append(self.tf_model_interface.metadata)
+            self.refresh_bar_chart()
 
             # initialize the 3d visualizer
             if len(self.tf_model_interface.layers) > 0:
@@ -913,35 +944,83 @@ class ApplicationWindow(QMainWindow):
 
         """prediction label inspector"""
         
-        self.chart = QChart()
-        #self.chart.addSeries(series)
-        self.chart.setTitle("Label Predictions".upper())
-        self.chart.setTheme(QChart.ChartThemeDark)
-        self.chart.setContentsMargins(0, 0, 0, 0)
-        self.chart.setBackgroundRoundness(0)
-        self.chart.setAnimationOptions(QChart.SeriesAnimations)
-        self.chart.setDropShadowEnabled(False)
-        self.chart.setBackgroundVisible(False)
+        # creating a plot window
+        self.barplot = pg.plot()
+ 
+        # create list for y-axis
+        x = ['Waiting for metadata'] #* 41
+        y = [0] # * 41
+ 
+        # TODO: Rotating ticks
+        # https://stackoverflow.com/questions/57042982/how-to-tilt-the-datetime-string-displayed-on-the-pyqtgraph-x-axis
 
-        # create axis
-
-        self.chart_series = QBarSeries()#'QPercentBarSeries()
+        # create pyqt5graph bar graph item
+        # with width = 0.6
+        # with bar colors = green
+        # https://stackoverflow.com/questions/31775468/show-string-values-on-x-axis-in-pyqtgraph
+        xdict = dict(enumerate(x))
+        self.bargraph = pg.BarGraphItem(x = list(xdict.keys()), height = y, width = 0.6, brush ='g')
         
-        label = [ "Waiting for labels" ]
-        self.chart_axis = QBarCategoryAxis()
-        self.chart_axis.setLabelsAngle(90)
-        self.chart_axis.setLabelsEditable(True)
-        self.chart_axis.append(label)
+        ax = self.barplot.getAxis("bottom")
+        ax.setTicks( [xdict.items()] )
 
-        self.chart.createDefaultAxes()
-        self.chart.setAxisX(self.chart_axis, self.chart_series)
+        # add item to plot window
+        # adding bargraph item to the plot window
+        self.barplot.addItem(self.bargraph)
 
-        y_axis = QValueAxis()
-        y_axis.setRange(0, 1)
-        y_axis.setTitleText("pConfidence")
-        self.chart.setAxisY(y_axis)
-       
-        self.plabel_pyqtplot_rendertarget = QChartView(self.chart)
+        # self.chart = QChart()
+        # #self.chart.addSeries(series)
+        # self.chart.setTitle("Label Predictions".upper())
+        # self.chart.setTheme(QChart.ChartThemeDark)
+        # self.chart.setContentsMargins(0, 0, 0, 0)
+        # self.chart.setBackgroundRoundness(0)
+        # self.chart.setAnimationOptions(QChart.SeriesAnimations)
+        # self.chart.setDropShadowEnabled(False)
+        # self.chart.setBackgroundVisible(False)
+
+        
+        # # import random
+
+        # # set0 = QBarSet('X0')
+        # # # set1 = QBarSet('X1')
+        # # # set2 = QBarSet('X2')
+        # # # set3 = QBarSet('X3')
+        # # # set4 = QBarSet('X4')
+
+        # # set0.append([random.randint(0, 10) for i in range(6)])
+        # # # set1.append([random.randint(0, 10) for i in range(6)])
+        # # # set2.append([random.randint(0, 10) for i in range(6)])
+        # # # set3.append([random.randint(0, 10) for i in range(6)])
+        # # # set4.append([random.randint(0, 10) for i in range(6)])
+
+        # set0 = QBarSet('X0')
+        # set0.append(0.5)
+        # self.chart_series = QBarSeries()
+        # self.chart_series.append(set0)
+
+        # # create axis
+
+        # #self.chart_series = QBarSeries()#'QPercentBarSeries()
+
+        # #self.chart_series.append(QBarSet("X0").append(0.5))
+        
+        # label = [ "Waiting for labels" ]
+        # self.chart_axis = QBarCategoryAxis()
+        # self.chart_axis.setLabelsAngle(0)
+        # self.chart_axis.setLabelsEditable(True)
+        # self.chart_axis.append(label)
+
+        # self.chart.createDefaultAxes()
+        # self.chart.addSeries(self.chart_series)
+        # self.chart.legend().setVisible(False)
+        # self.chart.setAxisX(self.chart_axis, self.chart_series)
+
+        # y_axis = QValueAxis()
+        # y_axis.setRange(0, 1)
+        # y_axis.setTitleText("pConfidence")
+        # self.chart.setAxisY(y_axis)
+
+        # self.plabel_pyqtplot_rendertarget = QChartView(self.chart)
 
         # self.plabel_pyqtplot_rendertarget = pg.GraphicsLayoutWidget(title="graphics window 2".upper())
 
@@ -986,7 +1065,7 @@ class ApplicationWindow(QMainWindow):
         Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
         #Overall_Layout.setRowStretch(2, 1)
         #Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
-        Overall_Layout.addWidget( self.plabel_pyqtplot_rendertarget, 2, 2 )
+        Overall_Layout.addWidget( self.barplot, 2, 2 )
         #Overall_Layout.setRowStretch(2, 3)
         Overall_Layout.addWidget( self.glvw, 3, 2 ) # append the 3d plot to the layout
 
@@ -1054,27 +1133,28 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize an instance of the tf_interface
         #try:
 
-        # initialize the tf_interface
-        self.tf_model_interface = tf_interface.TFInterface(
-            os.path.join( 
-                root_dir_path, 
-                'tf_models', 
-                'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v8.h5'
-            )
-        )
-        print(self.tf_model_interface.metadata)
-        if self.tf_model_interface.metadata is not None:
-            self.chart_axis.clear()
-            self.chart_axis.append(self.tf_model_interface.metadata)
+        # # initialize the tf_interface
+        # self.tf_model_interface = tf_interface.TFInterface(
+        #     os.path.join( 
+        #         root_dir_path, 
+        #         'tf_models', 
+        #         'MFCC_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v8.h5'
+        #     )
+        # )
+        # print(self.tf_model_interface.metadata)
+        # self.refresh_bar_chart()
+        # # if self.tf_model_interface.metadata is not None:
+        # #     self.chart_axis.clear()
+        # #     self.chart_axis.append(self.tf_model_interface.metadata)
 
 
             
-            # # update the x axis of the label prediction confidence bar chart 
-            # self.chart_axis.clear()
-            # self.chart_axis.append(self.tf_model_interface.metadata)
-            # self.chart.setAxisX(self.chart_axis)
+        #     # # update the x axis of the label prediction confidence bar chart 
+        #     # self.chart_axis.clear()
+        #     # self.chart_axis.append(self.tf_model_interface.metadata)
+        #     # self.chart.setAxisX(self.chart_axis)
 
-        self.ai_keyed_in = True
+        # self.ai_keyed_in = True
 
         # except Exception as e:
         #     print(f"Error when initializing the TFInterface {e}")
@@ -1097,56 +1177,6 @@ class ApplicationWindow(QMainWindow):
         #     ),
         #     #24#self.audio_handler.np_buffer.size # size of our waveform
         # )
-
-        
-        # def _plot_dots(layers_array, layers_name, layers_color, layers_marker, ax, xy_max):
-        #     """plot layers units as dots"""
-        #     temp = True
-        #     last_a, last_b, last_c = [0, 0], [0, 0], [0, 0]
-
-        #     #scatter = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(30, 255, 35, 255))
-
-        #     for layer, name, color_in, marker in zip(layers_array, layers_name, layers_color, layers_marker):
-        #         line_x, line_y, line_z = [], [], []
-        #         color_count = 0
-
-        #         for j in layer:
-        #             my_x, my_y, my_z = [], [], []
-        #             temp_list_l = []
-
-        #             for k in j[0]:
-        #                 k = [a + ((xy_max[0] - len(k)) / 2) for a in k]
-        #                 my_x += k
-
-        #             line_x.append([k[0], k[-1]])
-
-        #             for l in j[1]:
-        #                 l = [b + ((xy_max[1] - (j[1][-1][-1] + 1)) / 2) for b in l]
-        #                 my_y += l
-        #                 temp_list_l.append(l[0])
-
-        #             line_y.append([temp_list_l[0], temp_list_l[-1]])
-
-        #             for k in j[2]:
-        #                 my_z += k
-
-        #             line_z.append([k[0], k[-1]])
-
-        #             if color_in == 'rgb':
-        #                 color = color_in[color_count]
-        #                 color_count += 1
-        #             else:selected_device_id = self.audio_handler.available_devices_information[index]['index']
-        #                 color = color_in
-
-                    
-
-        #             ax.scatter3d(my_x, my_z, my_y, c=color, marker=marker)
-        #             # # adding spots to the scatter plot
-        #             # scatter.addPoints(x_data, y_data)
-            
-        #             # # add item to plot window
-        #             # # adding scatter plot item to the plot window
-        #             # plot.addItem(scatter)
 
         # #_plot_dots(self.tf_model_interface.layers_array, self.tf_model_interface.layers_name, self.tf_model_interface.layers_color, self.tf_model_interface.layers_marker, self.ml_v_canvas.axes, self.tf_model_interface.xy_max)
 
@@ -1235,37 +1265,6 @@ class ApplicationWindow(QMainWindow):
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
 
-    # def mel_spectrogram(self):
-    #     """
-    #         Function: mel_spectrogram
-    #         Description: calculate the mel spectrogram
-    #     """
-
-    #     # calculate the mel spectrogram
-    #     self.mel_spectrogram_data = librosa.feature.melspectrogram(self.source[len(self.source)-1], sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
-    #     self.mel_spectrogram_data = librosa.power_to_db(self.mel_spectrogram_data)
-
-    #     # set the mel spectrogram data
-    #     self.mel_spectrogram_x = list(range(len(self.mel_spectrogram_data[0])))
-    #     self.mel_spectrogram_y = self.mel_spectrogram_data
-
-    # # function that takes in audio data and erturns mel spectrogram
-    # def get_mel_spectrogram(self, audio_data):
-    #     """
-    #         Function: get_mel_spectrogram
-    #         Description: calculate the mel spectrogram
-    #     """
-
-    #     # calculate the mel spectrogram
-    #     mel_spectrogram_data = librosa.feature.melspectrogram(audio_data, sr=self.audio_handler.stream._rate, n_mels=128, fmax=8000)
-    #     mel_spectrogram_data = librosa.power_to_db(mel_spectrogram_data)
-
-    #     # set the mel spectrogram data
-    #     mel_spectrogram_x = list(range(len(mel_spectrogram_data[0])))
-    #     mel_spectrogram_y = mel_spectrogram_data
-
-    #     return mel_spectrogram_x, mel_spectrogram_y
-
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
         
@@ -1345,69 +1344,6 @@ class ApplicationWindow(QMainWindow):
                 self.mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
                 self.mfcc_spectrogram_img.setImage(self.mfcc_t_n, autoLevels=False)
 
-                #print(np.min(mfcc_sg_t), np.max(mfcc_sg_t))
-
-                # #n_fft was 2048, hop len 512 n_mels 128
-                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, n_fft=config.CHUNK_SIZE, S=None, n_mels=128)
-                # mel_spec = librosa.amplitude_to_db(np.abs(mel_spec))
-                # mel_spec = np.transpose(mel_spec)
-                # mel_spec = mel_spec[len(mel_spec)-1]
-
-                # # # convert to dB scale
-                # # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
-                # # #mel_spec = mel_spec.flatten()
-
-                # # # 
-                # # mel_spec = np.expand_dims(mel_spec, axis=0)
-                # # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
-                # # #mel_spec = 20 * np.log10(mel_spec)
-
-
-                # # broadcast mel_spec into mel_spectrogram_img_array and flattern array
-                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
-                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
-
-
-
-
-
-                # fetch mel spectrogram data
-                #mel_spectrogram_x, mel_spectrogram_y = self.get_mel_spectrogram(self.source[len(self.source)-1])
-
-                # use spec and calculate the mel spectrogram
-                
-
-
-
-
-
-                # update the mel spectrogram via 
-
-                # #n_fft was 2048, hop len 512
-                # mel_spec = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, S=None, n_fft=2048, hop_length=200, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)[-1]
-
-                # # convert to dB scale
-                # mel_spec = librosa.power_to_db(mel_spec, ref=np.max)
-                # #mel_spec = mel_spec.flatten()
-
-                # # 
-                # mel_spec = np.expand_dims(mel_spec, axis=0)
-                # print(mel_spec.shape, self.mel_spectrogram_img_array.shape)
-                # #mel_spec = 20 * np.log10(mel_spec)
-
-
-                # # broadcast mel_spec into mel_spectrogram_img_array and flattern array
-                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
-                # self.mel_spectrogram_img_array[-1:] = mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
-
-
-                # # roll down one and replace leading edge with new data
-                # self.mel_spectrogram_img_array = np.roll(self.mel_spectrogram_img_array, -1, 0) # roll down one row
-                # #self.mel_spectrogram_img_array[-1:] = mel_spec#mel_spec[0:self.mel_spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                # self.mel_spectrogram_img.setImage(self.mel_spectrogram_img_array, autoLevels=False) # set the image data
-
     def update_console(self):
         """Triggered by a timer to invoke an update on text edit"""
 
@@ -1428,82 +1364,21 @@ class ApplicationWindow(QMainWindow):
             self.textEdit.insertPlainText( str(full_string) )
             self.textEdit.moveCursor(QTextCursor.End)
 
-            # # update indicator text
-            # self.indicator_text_label.setText( self.indicator_text() )
- 
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
         
         #print("performing tf prediction") self.mfcc_sg
-        if self.mfcc_sg is not None and self.mfcc_t_n is not None and self.ai_keyed_in and self.tf_model_interface.model is not None:
+        if self.mfcc_sg is not None and self.mfcc_t_n is not None and self.ai_keyed_in and self.tf_model_interface is not None:
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
             #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
             #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
             
-            prediction = self.tf_model_interface.predict_mfcc( self.mfcc_t_n )
+            self.prediction = self.tf_model_interface.predict_mfcc( self.mfcc_t_n )
 
-            if self.tf_model_interface.metadata is not None and prediction is not None:
-                self.series.clear()
-                self.series.append( prediction )
+            self.bargraph.setOpts(height=self.prediction[0])
 
-            # num_segments = 5
-            # SAMPLE_RATE = self.audio_handler.stream._rate
-            # TRACK_DURATION = config.MAX_BUFFER_TIME #7 # measured in seconds
-            # SAMPLES_PER_TRACK = SAMPLE_RATE * TRACK_DURATION
-
-            # #num_mfcc=n_mfcc#13
-            # n_fft=1024#2048
-            # hop_length=512#64#128#256#512
-
-            # samples_per_segment = int(SAMPLES_PER_TRACK / num_segments)
-            # #num_mfcc_vectors_per_segment = math.ceil(samples_per_segment / hop_length)
             
-            # frames_max = 517
-            # segmented_features = []
 
-            # # process all segments of audio file
-            # for d in range(num_segments):
-
-            #     # calculate start and finish sample for current segment
-            #     start = samples_per_segment * d
-            #     finish = start + samples_per_segment
-
-            #     try:
-
-            #         # generate a mel scaled spectrogram
-            #         mel_spectrogram = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer[start:finish], sr=self.audio_handler.stream._rate, n_fft=n_fft, hop_length=hop_length)#self.mfcc_sg[start:finish]
-            #         mel_spectrogram = librosa.util.normalize(mel_spectrogram)
-
-            #         #mel_spectrogram = librosa.feature.melspectrogram(train_metadata.iloc[i]['data'][start:finish], sr=train_metadata.iloc[i]['sr'], n_fft=n_fft, hop_length=hop_length)
-            #         #mel_spectrogram = librosa.power_to_db(np.abs(mel_spectrogram)) #librosa.amplitude_to_db(np.abs(mel_spectrogram))
-            #         #mel_spectrogram = librosa.util.normalize(mel_spectrogram)
-            #         #mel_spectrogram = mel_spectrogram.T # x:time y:frequency
-
-            #         # Save current frame count
-            #         num_frames = mel_spectrogram.shape[1]
-                    
-            #         # Add row (feature / label)
-            #         segmented_features.append(mel_spectrogram)
-
-            #         # Update frames maximum
-            #         if (num_frames > frames_max):
-            #             frames_max = num_frames
-
-            #         # # plot the spectrogram and data side by side
-            #         # plt.figure(figsize=(10, 4))
-            #         # plt.subplot(1, 2, 1)
-            #         # plt.imshow(mel_spectrogram, aspect='auto', origin='lower', cmap='plasma')
-            #         # plt.title(train_metadata.iloc[i]['label'])
-            #         # plt.subplot(1, 2, 2)
-            #         # plt.plot(mel_spectrogram)
-            #         # plt.show()
-
-            #     except Exception as e:
-            #         print(f"Error processing segment {e}, probably not enough data to segment it")
-
-            #     padding = np.array(add_padding(segmented_features, frames_max))
-
-            #     print(frames_max,self.tf_model_interface.predict_multi_mfcc( padding ))
 
         #pass
         # try:
@@ -1537,7 +1412,27 @@ class ApplicationWindow(QMainWindow):
             
             tf_thread = threading.Thread(target=self.perform_tf_classification)
             tf_thread.start()
-        
+
+            if self.tf_model_interface is not None:
+                if self.tf_model_interface.metadata is not None and self.prediction is not None:
+
+                    a1 = self.chart.axisX(self.chart_series)
+                    
+                    # for x,p in enumerate(self.prediction.tolist()[0]):
+                    #     a1.insert(x)
+                    #print(a1.replace())
+
+                    # self.chart_series.clear()
+
+                    # for p in self.prediction.tolist()[0]:
+
+                    #     bar = QBarSet("A")
+                    #     bar.append(p)
+                    #     self.chart_series.append( bar )
+
+                    #self.chart_series.append( prediction.tolist() )
+                    #print(self.prediction.tolist()[0])
+
     def closeEvent(self,event):
         """close event is invoked on close but we want to prevent accidental close"""
         

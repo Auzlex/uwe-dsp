@@ -38,6 +38,8 @@ class TFInterface:
         self.metadata = json.loads(self.metadata)#json.loads('["Acoustic_guitar", "Applause", "Bark", "Bass_drum", "Burping_or_eructation", "Bus", "Cello", "Chime", "Clarinet", "Computer_keyboard", "Cough", "Cowbell", "Double_bass", "Drawer_open_or_close", "Electric_piano", "Fart", "Finger_snapping", "Fireworks", "Flute", "Glockenspiel", "Gong", "Gunshot_or_gunfire", "Harmonica", "Hi-hat", "Keys_jangling", "Knock", "Laughter", "Meow", "Microwave_oven", "Oboe", "Saxophone", "Scissors", "Shatter", "Snare_drum", "Squeak", "Tambourine", "Tearing", "Telephone", "Trumpet", "Violin_or_fiddle", "Writing"]')#json.loads(self.metadata)
         self.layers = self._model2layers()
 
+        print(self.model.layers[0])
+
 
     def _model2layers(self):
         """fatch layers name and shape from model"""
@@ -101,7 +103,7 @@ class TFInterface:
         input_shape = (n_mfcc, 517, 1) # 1 + int(np.floor(audio_length/512))
 
         array = np.resize(mffc_data, input_shape)
-        array = array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])#array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
 
         #self.model.layers[0].input_shape
 
