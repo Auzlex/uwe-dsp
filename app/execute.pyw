@@ -99,7 +99,18 @@ class ApplicationWindow(QMainWindow):
     def __init__(self): # initialization function
         super().__init__() # invoke derived class constructor
         self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
+        
+        """self data references that stores np arrays of audio data"""
+        self.stft = None
+        self.stft_normalize = None 
+        
+        self.mel = None
+        self.mel_normalize = None
+        
+        self.mfcc = None
+        self.mfcc_normalize = None
 
+        """tf related variables"""
         self.tf_model_interface = None
 
         self.prediction = None # stores the prediction
@@ -812,7 +823,7 @@ class ApplicationWindow(QMainWindow):
 
         # set colormap
         self.spectrogram_img.setLookupTable(lut)
-        self.spectrogram_img.setLevels([-50,40])
+        self.spectrogram_img.setLevels([-1,1]) # [-50,40]
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
@@ -842,7 +853,7 @@ class ApplicationWindow(QMainWindow):
 
         # set colormap
         self.mel_spectrogram_img.setLookupTable(lut)
-        self.mel_spectrogram_img.setLevels([-3,0.5])
+        self.mel_spectrogram_img.setLevels([-1,1]) # [-3,0.5]
 
         # setup the correct scaling for y-axis
         freq = np.arange(0,int(config.SAMPLE_RATE/2))
@@ -1048,7 +1059,7 @@ class ApplicationWindow(QMainWindow):
 
         # Setup a timer to trigger the redraw by calling update_plot.
         self.ai_classify_timer = QTimer()
-        self.ai_classify_timer.setInterval(500) # 500
+        self.ai_classify_timer.setInterval(1000) # 500
         self.ai_classify_timer.timeout.connect(self.classify_audio_update) # self.update_plot
 
         # Setup a timer to trigger the redraw by calling update_plot.
@@ -1159,7 +1170,8 @@ class ApplicationWindow(QMainWindow):
         # if len(self.tf_model_interface.layers) > 0:
         #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
-        self.ai_keyed_in = True
+        #self.ai_keyed_in = True
+
         #self.tf_model_interface = None
 
         # attempt to initialize an instance of the tf_interface
@@ -1285,61 +1297,34 @@ class ApplicationWindow(QMainWindow):
             # update spectrogram if the np buffer is greater than the chunk size
             # because if its too small its not enough for the spectrogram to render
             if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK and len(self.source) > 0:
-                #np_array = librosa.feature.melspectrogram(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate, S=None, n_fft=2048, hop_length=512, win_length=None, window='hann', center=True, pad_mode='reflect', power=2.0)
+                # normalize the np_buffer stream
+                normalized_y = librosa.util.normalize(self.audio_handler.np_buffer)
+
+                """stft linear-scale spectrogram"""
+                # generate a stft spectrogram
+                self.stft = librosa.stft(y=normalized_y, n_fft=config.CHUNK_SIZE, hop_length=config.HOP_LENGTH)
+                stft_db_abs = librosa.power_to_db(np.abs(self.stft)) #librosa.amplitude_to_db(np.abs(stft))
+                self.stft_normalize = librosa.util.normalize(stft_db_abs)
                 
-                # # # normalized, windowed frequencies in data chunk
-                # old_spec = np.fft.rfft(self.source[len(self.source)-1])#self.audio_handler.np_buffer#np.fft.rfft(config.CHUNK_SIZE*self.win) / config.CHUNK_SIZE
+                # we need to transpose the array for the spectrogram to be displayed correctly
+                normalized_stft_t = np.transpose(self.stft_normalize)
+                self.spectrogram_img.setImage(normalized_stft_t, autoLevels=False)
 
-                # # get magnitude 
-                # psd = abs(old_spec)
+                """mel-scale spectrogram""" 
+                self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE)
+                mel_db = librosa.power_to_db(np.abs(self.mel))
+                self.mel_normalize = librosa.util.normalize(mel_db)
+
+                # we need to transpose the array for the spectrogram to be displayed correctly
+                normalized_mel_t = np.transpose(self.mel_normalize) 
+                self.mel_spectrogram_img.setImage(normalized_mel_t, autoLevels=False)
+
+                """mel-frequency(scale) cepstral coefficients spectrogram""" 
+                self.mfcc = librosa.feature.mfcc(y=normalized_y, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=config.HOP_LENGTH)
+                self.mfcc_normalize = librosa.util.normalize(self.mfcc)
                 
-                # # convert to dB scale
-                # psd_t = 20 * np.log10(psd)
-                
-                hop_length = 512
-                stft = librosa.stft(self.audio_handler.np_buffer, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
-                
-                #convert to db
-                stft_db_abs = librosa.power_to_db(np.abs(stft)) #librosa.amplitude_to_db(np.abs(stft))
-                
-                stft_db_abs_t = np.transpose(stft_db_abs)
-                #psd_t = psd_t[len(psd_t)-1]
-                #print(psd_t.shape,  self.spectrogram_img_array.shape)
-
-                # raw data (not normalized) -> stft
-                # stft (power to db) or (amplitude to db)
-                # stft into melspectrogram or mfcc
-                # after mel or mfcc normalize
-                
-                self.spectrogram_img.setImage(stft_db_abs_t, autoLevels=False)
-
-                #print(psd_t[0:self.spectrogram_img_array.shape[1]])
-
-                # self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
-                # self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                # self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
-
-
-                # roll down one and replace leading edge with new data
-                # self.spectrogram_img_array = np.roll(self.spectrogram_img_array, -1, 0) # roll down one row
-                # self.spectrogram_img_array[-1:] = psd_t[0:self.spectrogram_img_array.shape[1]] # only take the first half of the spectrum
-                # self.spectrogram_img.setImage(self.spectrogram_img_array, autoLevels=False) # set the image data
-
-                """mel spectrogram""" 
-
-                self.msg = librosa.feature.melspectrogram(S=stft_db_abs, sr=self.audio_handler.stream._rate, hop_length=hop_length, n_fft=config.CHUNK_SIZE)
-                msg_t = librosa.util.normalize(self.msg)
-                msg_t = np.transpose(msg_t) # transpose the data because for some reason they are in a weird format idk
-                self.mel_spectrogram_img.setImage(msg_t, autoLevels=False)
-
-                #print(np.min(msg_t), np.max(msg_t))
-
-                """mfcc""" 
-                #stft_db_abs
-                self.mfcc_sg = librosa.feature.mfcc(S=self.msg, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=hop_length)
-                mfcc_sg_t = np.transpose(self.mfcc_sg) # transpose the data because for some reason they are in a weird format idk
-                self.mfcc_t_n = librosa.util.normalize(mfcc_sg_t)
-                self.mfcc_spectrogram_img.setImage(self.mfcc_t_n, autoLevels=False)
+                normalized_mfcc_t = np.transpose(self.mfcc_normalize) # transpose the data because for some reason they are in a weird format idk
+                self.mfcc_spectrogram_img.setImage(normalized_mfcc_t, autoLevels=False)
 
     def update_console(self):
         """Triggered by a timer to invoke an update on text edit"""
@@ -1365,25 +1350,30 @@ class ApplicationWindow(QMainWindow):
         """perform a classification using the tf_interface"""
         
         #print("performing tf prediction") self.mfcc_sg
-        if self.mfcc_sg is not None and self.mfcc_t_n is not None and self.ai_keyed_in and self.tf_model_interface is not None:
-            #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize( self.mfcc_sg ) ))
-            #print(self.tf_model_interface.predict_mel( librosa.util.normalize( self.msg ) ))
-            #print(self.tf_model_interface.predict_mfcc( librosa.util.normalize(librosa.feature.mfcc(y=self.audio_handler.np_buffer, sr=self.audio_handler.stream._rate) ) ))
-            
-            self.prediction = self.tf_model_interface.predict_mfcc( self.mfcc_t_n )
-            if self.tf_model_interface.metadata is not None:
-                print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+        if self.ai_keyed_in is True:
 
-        # if self.metadata is not None:
+            if self.mel is not None and self.stft is not None and self.mfcc is not None:
 
-        #     #print(index, self.metadata[index], type(self.metadata) )
-        #     return self.metadata[index]
+                if self.tf_model_interface is not None:
+ 
+                    # from the mfcc get only 517 frames
+                    #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
-            if self.tf_model_interface is not None:
-                if self.tf_model_interface.metadata is not None and self.prediction is not None:
-                    self.bargraph.setOpts(height=self.prediction[0])
 
-            
+                    input_shape = (40, 517, 1) 
+
+                    # pad the mffcc_data array to the input shape
+                    array = np.pad(self.mfcc_normalize, (0, input_shape[1] - self.mfcc_normalize.shape[0]), 'constant')
+        
+                    array = np.resize(array, input_shape)
+                    array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+
+                    self.prediction = self.tf_model_interface.predict_mfcc( array )
+                    if self.tf_model_interface.metadata is not None:
+                        print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+
+                        if self.prediction is not None:
+                            self.bargraph.setOpts(height=self.prediction[0])
 
 
         #pass
