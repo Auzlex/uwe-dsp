@@ -165,7 +165,7 @@ def plot_train_history(history, x_ticks_vertical=False):
 
     plt.show()
 
-
+"""loading and saving models"""
 import h5py
 from keras.models import save_model
 from keras.models import load_model
@@ -173,16 +173,27 @@ from keras.models import load_model
 def load_model_ext(filepath, custom_objects=None):
     model = load_model(filepath, custom_objects=None)
     f = h5py.File(filepath, mode='r')
-    meta_data = None
-    if 'metadata' in f.attrs:
-        meta_data = f.attrs.get('metadata')
-    f.close()
-    return model, meta_data
 
-def save_model_ext(model, filepath, overwrite=True, meta_data=None):
+    meta_data = None
+    if 'metadata' in f.attrs: # metadata
+        meta_data = f.attrs.get('metadata')
+
+    dfe = None
+    if 'dfe' in f.attrs: # desired feature extraction
+        dfe = f.attrs.get('dfe')
+
+    f.close()
+    return model, meta_data, dfe
+
+def save_model_ext(model, filepath, overwrite=True, meta_data=None, dfe=None):
     save_model(model, filepath, overwrite)
     if meta_data is not None:
         f = h5py.File(filepath, mode='a')
         f.attrs['metadata'] = meta_data
+        
+        if dfe is not None:
+            f.attrs['dfe'] = dfe
+        
         f.close()
+
 

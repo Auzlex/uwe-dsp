@@ -14,11 +14,17 @@ from keras.models import load_model
 def load_model_ext(filepath, custom_objects=None):
     model = load_model(filepath, custom_objects=None)
     f = h5py.File(filepath, mode='r')
+
     meta_data = None
-    if 'metadata' in f.attrs:
+    if 'metadata' in f.attrs: # metadata
         meta_data = f.attrs.get('metadata')
+
+    dfe = None
+    if 'dfe' in f.attrs: # desired feature extraction
+        dfe = f.attrs.get('dfe')
+
     f.close()
-    return model, meta_data
+    return model, meta_data, dfe
 
 #endregion
 class TFInterface:
@@ -34,10 +40,11 @@ class TFInterface:
                 model_path: The path to the model.
         """
         self.model_path = model_path
-        self.model, self.metadata = load_model_ext(model_path)
+        self.model, self.metadata, self.dfe = load_model_ext(model_path)
         self.metadata = json.loads(self.metadata)#json.loads('["Acoustic_guitar", "Applause", "Bark", "Bass_drum", "Burping_or_eructation", "Bus", "Cello", "Chime", "Clarinet", "Computer_keyboard", "Cough", "Cowbell", "Double_bass", "Drawer_open_or_close", "Electric_piano", "Fart", "Finger_snapping", "Fireworks", "Flute", "Glockenspiel", "Gong", "Gunshot_or_gunfire", "Harmonica", "Hi-hat", "Keys_jangling", "Knock", "Laughter", "Meow", "Microwave_oven", "Oboe", "Saxophone", "Scissors", "Shatter", "Snare_drum", "Squeak", "Tambourine", "Tearing", "Telephone", "Trumpet", "Violin_or_fiddle", "Writing"]')#json.loads(self.metadata)
         self.layers = self._model2layers()
 
+        print(f"model dfe: {self.dfe}")
         print(self.model.layers[0])
 
 

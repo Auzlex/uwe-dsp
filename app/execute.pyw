@@ -234,22 +234,6 @@ class ApplicationWindow(QMainWindow):
             ax = self.barplot.getAxis("bottom")
             ax.setTicks( [xdict.items()] )
 
-
-            #https://stackoverflow.com/questions/62799886/dynamically-updating-a-qchart
-
-            # # update labels of the label prediction plot
-            # self.chart_axis.clear()
-            # self.chart_axis.setLabelsAngle(90)
-            # self.chart_axis.append(self.tf_model_interface.metadata)
-
-            # self.chart_series.clear()
-
-            # for p in self.tf_model_interface.metadata:
-
-            #     bar = QBarSet("A")
-            #     bar.append(0.5)
-            #     self.chart_series.append( bar )
-
     def fetch_h5_model(self):
         print("starting -> QFileDialog")
         options = QFileDialog.Options()
@@ -1356,24 +1340,33 @@ class ApplicationWindow(QMainWindow):
 
                 if self.tf_model_interface is not None:
  
-                    # from the mfcc get only 517 frames
-                    #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
+                    if self.tf_model_interface.dfe is not None:
 
+                        input_shape = None
+                        array = None
 
-                    input_shape = (40, 517, 1) 
+                        if self.tf_model_interface.dfe == "mel":
+                            input_shape = (128, 259, 1)
+                            array = np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
+                        elif self.tf_model_interface.dfe == "mfcc":
+                            input_shape = (40, 517, 1) 
+                            array = np.pad(self.mfcc_normalize, (0, input_shape[1] - self.mfcc_normalize.shape[0]), 'constant')
 
-                    # pad the mffcc_data array to the input shape
-                    array = np.pad(self.mfcc_normalize, (0, input_shape[1] - self.mfcc_normalize.shape[0]), 'constant')
-        
-                    array = np.resize(array, input_shape)
-                    array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+                        # from the mfcc get only 517 frames
+                        #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
-                    self.prediction = self.tf_model_interface.predict_mfcc( array )
-                    if self.tf_model_interface.metadata is not None:
-                        print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+                        # pad the mffcc_data array to the input shape
+                        
+            
+                        array = np.resize(array, input_shape)
+                        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
 
-                        if self.prediction is not None:
-                            self.bargraph.setOpts(height=self.prediction[0])
+                        self.prediction = self.tf_model_interface.predict_mfcc( array )
+                        if self.tf_model_interface.metadata is not None:
+                            print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+
+                            if self.prediction is not None:
+                                self.bargraph.setOpts(height=self.prediction[0])
 
 
         #pass
