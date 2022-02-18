@@ -529,6 +529,7 @@ class ApplicationWindow(QMainWindow):
         self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Linear-scale spectrogram".upper(), row=2, col=0)
         self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-scale spectrogram".upper(), row=3, col=0)
         self.mfcc_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-frequency cepstral coefficients".upper(), row=4, col=0)
+        self.input_data_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="ML INPUT DATA".upper(), row=5, col=0)
 
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
@@ -875,6 +876,21 @@ class ApplicationWindow(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mfcc_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
+        """ML INPUT DATA"""
+        # image for mel spectrogram
+        self.mlid_spectrogram_img = pg.ImageItem()
+        # add the mel_spectrogram_img to the mel_spec canvas
+        self.input_data_canvas.addItem(self.mlid_spectrogram_img)
+
+        # set colormap
+        self.mlid_spectrogram_img.setLookupTable(lut)
+        self.mlid_spectrogram_img.setLevels([-1,1]) # [-50,40]
+
+        # set spectrogram_img scale
+        self.mlid_spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+
+        # set the label of the canvas to show frequency on the Y axis
+        #self.mfcc_spec_canvas.setLabel('left', 'Frequency', units='Hz')
         """construct the 3d viewer window with pyqtgraph"""
         ## test
         p1 = pg.PlotWidget()
@@ -1356,10 +1372,12 @@ class ApplicationWindow(QMainWindow):
                         #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
                         # pad the mffcc_data array to the input shape
+
                         
-            
                         array = np.resize(array, input_shape)
                         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+                        
+                        self.mlid_spectrogram_img.setImage(self.mfcc_normalize.T, autoLevels=False)
 
                         self.prediction = self.tf_model_interface.predict_mfcc( array )
                         if self.tf_model_interface.metadata is not None:
