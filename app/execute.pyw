@@ -1120,7 +1120,12 @@ class ApplicationWindow(QMainWindow):
             self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
 
             # set the starting device to be the first found input device
-            self.mscb.setCurrentIndex(0)
+            # if we are on windows set the self.mscb.setCurrentIndex to 0
+            if os.name == 'nt':
+                self.mscb.setCurrentIndex(0)
+            elif os.name == 'posix': # else if we are on linux set the self.mscb.setCurrentIndex to the last index
+                self.mscb.setCurrentIndex(self.mscb.count() - 1)
+
             index = self.mscb.currentIndex()
             selected_device_id = self.audio_handler.available_devices_information[index]['index']
 
