@@ -1163,23 +1163,23 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize an instance of the tf_interface
         #try:
 
-        # initialize the tf_interface
-        self.tf_model_interface = tf_interface.TFInterface(
-            os.path.join( 
-                root_dir_path, 
-                'tf_models', 
-                'MEL_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v9.h5'
-            )
-        )
-        print(self.tf_model_interface.metadata)
-        self.refresh_bar_chart()
+        # # initialize the tf_interface
+        # self.tf_model_interface = tf_interface.TFInterface(
+        #     os.path.join( 
+        #         root_dir_path, 
+        #         'tf_models', 
+        #         'MEL_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v9.h5'
+        #     )
+        # )
+        # print(self.tf_model_interface.metadata)
+        # self.refresh_bar_chart()
         
-        # except Exception as e:
-        #     print(f"Error when initializing the TFInterface {e}")
+        # # except Exception as e:
+        # #     print(f"Error when initializing the TFInterface {e}")
 
-        #initialize the 3d visualizer
-        if len(self.tf_model_interface.layers) > 0:
-            self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
+        # #initialize the 3d visualizer
+        # if len(self.tf_model_interface.layers) > 0:
+        #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
         #self.ai_keyed_in = True
 
