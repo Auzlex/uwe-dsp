@@ -153,6 +153,10 @@ class ApplicationWindow(QMainWindow):
             # get audio handler information
             if self.audio_handler.is_stream_active():
                 s = (f"sample rate: <font color=\'orange\'>{self.audio_handler.stream._rate}</font> Hz | channels: <font color=\'cyan\'>{self.audio_handler.stream._channels}</font> | chunk: <font color=\'lime\'>{self.audio_handler.stream._frames_per_buffer}</font> | device_index: <font color=\'pink\'>{self.audio_handler.available_devices_information[self.mscb.currentIndex()]['index']}</font>").upper()
+
+                if self.tf_model_interface is not None:
+                    s += (f" | model name: <font color=\'yellow\'>{self.tf_model_interface.model.name}</font> | model's dfe: <font color=\'yellow\'>{self.tf_model_interface.dfe}</font>").upper()
+
             else:
                 s = (f"<font color=\'orange\'>AWAITING AUDIO STREAM INITIALIZATION</font>").upper()
 
@@ -228,10 +232,11 @@ class ApplicationWindow(QMainWindow):
             xdict = dict(enumerate(labels))
 
             y = [0] * len(labels)
-            self.barplot.setXRange(0, len(labels)+1)
-            self.bargraph.setOpts(x=list(xdict.keys()), height=y)
+            self.barplot.setYRange(0, len(labels)+1)
+            self.barplot.setXRange(0, 1)
+            self.bargraph.setOpts(x0=0, y=list(xdict.keys()), width=y)
             
-            ax = self.barplot.getAxis("bottom")
+            ax = self.barplot.getAxis("left")
             ax.setTicks( [xdict.items()] )
 
     def fetch_h5_model(self):
@@ -325,27 +330,7 @@ class ApplicationWindow(QMainWindow):
         # m1.translate(0, 0, 1)
         # self.glvw.addItem(m1)
 
-        vertexes = np.array([[1, 0, 0], #0
-                     [0, 0, 0], #1
-                     [0, 1, 0], #2
-                     [0, 0, 1], #3
-                     [1, 1, 0], #4
-                     [1, 1, 1], #5
-                     [0, 1, 1], #6
-                     [1, 0, 1]])#7
 
-        faces = np.array([[1,0,7], [1,3,7],
-                  [1,2,4], [1,0,4],
-                  [1,2,6], [1,3,6],
-                  [0,4,5], [0,7,5],
-                  [2,4,5], [2,6,5],
-                  [3,6,5], [3,7,5]])
-
-        colors = np.array([[1,1,1,1] for i in range(12)])
-
-        model_shape_parent = [
-            
-        ]
 
         a = 1
         N = 1
@@ -392,53 +377,61 @@ class ApplicationWindow(QMainWindow):
             except IndexError:
                 n3 = 1
 
-            #print(layer,shape,name)
-            model_shape_parent = []
-            for x in range(n1):
-                for y in range(n2):
-                    for z in range(n3):
-                        # X is 
-                        model_shape_parent.append( [ (x - n1/2) * 0.05, 0 + (((next_shape_offset + ( i * 5 )) + z) - (total_nn_shape/2)) * 0.025, (y - (n2/2)) * 0.05 ] ) # [ x, z, i * 10 ]
-                        #model_shape_parent.append( [ x * 5, (i * 150 * n3) + z, y * 5 ] ) # [ x, z, i * 10 ]
-                        #model_shape_parent.append( [ x, z - int(z/2), y ] ) # [ x, z, i * 10 ]
-
-            # get the last Z dim shape and append to next shape offset to ensure that the shapes are not overlapping
-            next_shape_offset += n3
-
             # x <right+, -left> z<+forward,-backward> y<+up, -down>
 
-            colour = (0.1, 0.1, 0.1, 0.025)#colours[count]#(0.1, 0.1, 0.1, 0.025) # all nodes are grey/white
+            colour = (0.35, 0.35, 0.35, 0.5)#colours[count]#(0.1, 0.1, 0.1, 0.025) # all nodes are grey/white
             if i == 0:
                 colour = (N, 0, 0, a) # entry nodes are green
             elif i >= len(layers)-2:
                 colour = (0, N, 0, a) # label nodes are red
 
-            m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=colour, size=5, pxMode=True)
-            self.glvw.addItem(m)
+            #m = gl.GLScatterPlotItem(pos=np.array(model_shape_parent), color=colour, size=5, pxMode=True)
+            #self.glvw.addItem(m)
 
-            # cube = gl.GLMeshItem(
-            #     vertexes=vertexes, 
-            #     faces=faces, 
-            #     faceColors=colors,
-            #     drawEdges=True, 
-            #     edgeColor=(0, 0, 0, 1)
-            # )
+            vertexes = np.array([[1, 0, 0], #0
+                     [0, 0, 0], #1
+                     [0, 1, 0], #2
+                     [0, 0, 1], #3
+                     [1, 1, 0], #4
+                     [1, 1, 1], #5
+                     [0, 1, 1], #6
+                     [1, 0, 1]])#7
 
-            # cube.resetTransform()
-            # cube.translate(0, (next_shape_offset + ( i * 5 )) - (total_nn_shape/2), 0)
+            faces = np.array([[1,0,7], [1,3,7],
+                    [1,2,4], [1,0,4],
+                    [1,2,6], [1,3,6],
+                    [0,4,5], [0,7,5],
+                    [2,4,5], [2,6,5],
+                    [3,6,5], [3,7,5]])
 
-            # # x z y
-            # cube.scale( n1, n2, n3, local=True)
+            colors = np.array([[colour[0],colour[1],colour[2],colour[3]] for i in range(12)])
 
-            # self.glvw.addItem(cube)
-            
+            cube = gl.GLMeshItem(
+                vertexes=vertexes, 
+                faces=faces, 
+                faceColors=colors,
+                drawEdges=True, 
+                edgeColor=(0, 0, 0, 0.5),
+                #shader="shaded",#"balloon",
+                glOptions="translucent",
+            )
+
+            cube.resetTransform()
+            cube.translate( -(n1 * 0.025)/2, ((next_shape_offset + ( i * 5 )) - (total_nn_shape/2)) * 0.025, -( n2/2 ) * 0.025 )
+            cube.scale( n1 * 0.025, n3 * 0.025, n2 * 0.025, local=True)
+
+            next_shape_offset += n3
+
+            self.glvw.addItem(cube)
+
+
         #self.grid = gl.GLGridItem(size=QtGui.QVector3D(int(next_shape_offset/2) * 0.025,(next_shape_offset * 0.025) * 2,1))
         self.grid = gl.GLGridItem()
         #self.grid.setTickSpacing(x=10, y=10, z=10)
         self.glvw.addItem(self.grid)
 
-        self.glvw.setCameraPosition(pos=Vector( 0, ((next_shape_offset + len(layers) * 5) / 2 - (total_nn_shape/2)) * 0.025, 0 ), distance=(next_shape_offset / 2) * 0.025)
-        del model_shape_parent
+        self.glvw.setCameraPosition(pos=Vector( 0, ((next_shape_offset + len(layers) * 5) / 2 - (total_nn_shape/2)) * 0.025, 0 ), distance=(total_nn_shape) * 0.05)
+        #del model_shape_parent
 
     def setup_user_interface(self) -> None:
         """
@@ -529,7 +522,7 @@ class ApplicationWindow(QMainWindow):
         self.spg_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Linear-scale spectrogram".upper(), row=2, col=0)
         self.mel_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-scale spectrogram".upper(), row=3, col=0)
         self.mfcc_spec_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="Mel-frequency cepstral coefficients".upper(), row=4, col=0)
-        self.input_data_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="ML INPUT DATA".upper(), row=5, col=0)
+        #self.input_data_canvas = self.audio_pyqtplot_rendertarget.addPlot(title="ML INPUT DATA".upper(), row=5, col=0)
 
         # plasma colour map from matplotlib without importing it
         colourmap_lut = np.asarray([
@@ -876,18 +869,18 @@ class ApplicationWindow(QMainWindow):
         # set the label of the canvas to show frequency on the Y axis
         self.mfcc_spec_canvas.setLabel('left', 'Frequency', units='Hz')
 
-        """ML INPUT DATA"""
-        # image for mel spectrogram
-        self.mlid_spectrogram_img = pg.ImageItem()
-        # add the mel_spectrogram_img to the mel_spec canvas
-        self.input_data_canvas.addItem(self.mlid_spectrogram_img)
+        # """ML INPUT DATA"""
+        # # image for mel spectrogram
+        # self.mlid_spectrogram_img = pg.ImageItem()
+        # # add the mel_spectrogram_img to the mel_spec canvas
+        # self.input_data_canvas.addItem(self.mlid_spectrogram_img)
 
-        # set colormap
-        self.mlid_spectrogram_img.setLookupTable(lut)
-        self.mlid_spectrogram_img.setLevels([-1,1]) # [-50,40]
+        # # set colormap
+        # self.mlid_spectrogram_img.setLookupTable(lut)
+        # self.mlid_spectrogram_img.setLevels([-1,1]) # [-50,40]
 
-        # set spectrogram_img scale
-        self.mlid_spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
+        # # set spectrogram_img scale
+        # self.mlid_spectrogram_img.scale((1./config.SAMPLE_RATE)*config.CHUNK_SIZE, yscale)
 
         # set the label of the canvas to show frequency on the Y axis
         #self.mfcc_spec_canvas.setLabel('left', 'Frequency', units='Hz')
@@ -1037,10 +1030,15 @@ class ApplicationWindow(QMainWindow):
         # with bar colors = green
         # https://stackoverflow.com/questions/31775468/show-string-values-on-x-axis-in-pyqtgraph
         xdict = dict(enumerate(x))
-        self.bargraph = pg.BarGraphItem(x = list(xdict.keys()), height = y, width = 0.6, brush ='g')
-        
-        ax = self.barplot.getAxis("bottom")
+        self.bargraph = pg.BarGraphItem(x0=0, y=list(xdict.keys()), height = 0.6, width=y, brush ='g')
+        self.barplot.setYRange(0, 1)
+        self.barplot.setXRange(0, 1)
+        ax = self.barplot.getAxis("left")
         ax.setTicks( [xdict.items()] )
+
+        # set axis labels
+        self.barplot.setLabel('left', 'Labels'.upper())
+        self.barplot.setLabel('bottom', 'Prediction Confidence'.upper())
 
         # add item to plot window
         # adding bargraph item to the plot window
@@ -1067,6 +1065,11 @@ class ApplicationWindow(QMainWindow):
         self.timer2.setInterval(0) # 3000
         self.timer2.timeout.connect(self.update_plot) # self.update_plot
 
+        # Setup a timer to trigger the redraw by calling update_plot.
+        self.timer3 = QTimer()
+        self.timer3.setInterval(0) # 3000
+        self.timer3.timeout.connect(self.rotate_update) # self.update_plot
+
         # setup the layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -1084,9 +1087,9 @@ class ApplicationWindow(QMainWindow):
         Overall_Layout.addWidget( self.audio_pyqtplot_rendertarget, 3, 1 )
         #Overall_Layout.setRowStretch(2, 1)
         #Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
-        Overall_Layout.addWidget( self.barplot, 2, 2 )
+        Overall_Layout.addWidget( self.barplot, 3, 2 )
         #Overall_Layout.setRowStretch(2, 3)
-        Overall_Layout.addWidget( self.glvw, 3, 2 ) # append the 3d plot to the layout
+        Overall_Layout.addWidget( self.glvw, 2, 2 ) # append the 3d plot to the layout
 
         # setup the window layout
         self.setGeometry(300, 300, 1280, 720)        # set the size of the window
@@ -1145,6 +1148,9 @@ class ApplicationWindow(QMainWindow):
 
                 # update plot timer
                 self.timer2.start()
+
+                # update plot timer
+                self.timer3.start()
             else:
                 print("Audio stream is not active")
 
@@ -1166,9 +1172,9 @@ class ApplicationWindow(QMainWindow):
         # except Exception as e:
         #     print(f"Error when initializing the TFInterface {e}")
 
-        # initialize the 3d visualizer
-        # if len(self.tf_model_interface.layers) > 0:
-        #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
+        #initialize the 3d visualizer
+        if len(self.tf_model_interface.layers) > 0:
+            self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
         #self.ai_keyed_in = True
 
@@ -1274,6 +1280,10 @@ class ApplicationWindow(QMainWindow):
             self.wave_y = self.simplified_data
             self.wave_negative_y = self.negative_simplified_data
 
+    def rotate_update(self):
+        # auto rotate the camera view anyway
+        self.glvw.orbit(1, 0)
+
     def update_plot(self, override = False):
         """Triggered by a timer to invoke canvas to update and redraw."""
         
@@ -1307,8 +1317,7 @@ class ApplicationWindow(QMainWindow):
                 self.stft_normalize = librosa.util.normalize(stft_db_abs)
                 
                 # we need to transpose the array for the spectrogram to be displayed correctly
-                normalized_stft_t = np.transpose(self.stft_normalize)
-                self.spectrogram_img.setImage(normalized_stft_t, autoLevels=False)
+                self.spectrogram_img.setImage(self.stft_normalize.T, autoLevels=False)
 
                 """mel-scale spectrogram""" 
                 self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE)
@@ -1316,15 +1325,14 @@ class ApplicationWindow(QMainWindow):
                 self.mel_normalize = librosa.util.normalize(mel_db)
 
                 # we need to transpose the array for the spectrogram to be displayed correctly
-                normalized_mel_t = np.transpose(self.mel_normalize) 
-                self.mel_spectrogram_img.setImage(normalized_mel_t, autoLevels=False)
+                self.mel_spectrogram_img.setImage(self.mel_normalize.T, autoLevels=False)
 
                 """mel-frequency(scale) cepstral coefficients spectrogram""" 
                 self.mfcc = librosa.feature.mfcc(y=normalized_y, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=config.HOP_LENGTH)
                 self.mfcc_normalize = librosa.util.normalize(self.mfcc)
                 
-                normalized_mfcc_t = np.transpose(self.mfcc_normalize) # transpose the data because for some reason they are in a weird format idk
-                self.mfcc_spectrogram_img.setImage(normalized_mfcc_t, autoLevels=False)
+                # transpose the data because for some reason they are in a weird format idk
+                self.mfcc_spectrogram_img.setImage(self.mfcc_normalize.T, autoLevels=False)
 
     def update_console(self):
         """Triggered by a timer to invoke an update on text edit"""
@@ -1349,24 +1357,32 @@ class ApplicationWindow(QMainWindow):
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
         
-        #print("performing tf prediction") self.mfcc_sg
+        # if we are keyed in
         if self.ai_keyed_in is True:
-
+            
+            # make sure feature extracted data is available
             if self.mel is not None and self.stft is not None and self.mfcc is not None:
 
+                # make sure the tf_model_interface is also available
                 if self.tf_model_interface is not None:
  
+                    # determine if the model has a desired feature extraction method embedded in it
                     if self.tf_model_interface.dfe is not None:
 
                         input_shape = None
                         array = None
 
+                    
+                        #print(f"performing tf prediction dfe: {self.tf_model_interface.dfe}")
+
                         if self.tf_model_interface.dfe == "mel":
                             input_shape = (128, 259, 1)
-                            array = np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
+                            array = np.array(self.mel_normalize[:int(2 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
                             input_shape = (40, 517, 1) 
-                            array = np.pad(self.mfcc_normalize, (0, input_shape[1] - self.mfcc_normalize.shape[0]), 'constant')
+                            array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
+                            #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
+                            #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
 
                         # from the mfcc get only 517 frames
                         #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
@@ -1374,17 +1390,17 @@ class ApplicationWindow(QMainWindow):
                         # pad the mffcc_data array to the input shape
 
                         
+                        #self.mlid_spectrogram_img.setImage(array.T, autoLevels=False)
                         array = np.resize(array, input_shape)
                         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
                         
-                        self.mlid_spectrogram_img.setImage(self.mfcc_normalize.T, autoLevels=False)
 
                         self.prediction = self.tf_model_interface.predict_mfcc( array )
                         if self.tf_model_interface.metadata is not None:
                             print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
 
                             if self.prediction is not None:
-                                self.bargraph.setOpts(height=self.prediction[0])
+                                self.bargraph.setOpts(width=self.prediction[0])
 
 
         #pass
