@@ -171,7 +171,7 @@ from keras.models import save_model
 from keras.models import load_model
 
 def load_model_ext(filepath, custom_objects=None):
-    model = load_model(filepath, custom_objects=None)
+    model = load_model(filepath, custom_objects=custom_objects)
     f = h5py.File(filepath, mode='r')
 
     meta_data = None
@@ -196,4 +196,25 @@ def save_model_ext(model, filepath, overwrite=True, meta_data=None, dfe=None):
         
         f.close()
 
+from librosa.core import resample, to_mono
+import wavio
+
+def downsample_mono(path, sr):
+    obj = wavio.read(path)
+    wav = obj.data.astype(np.float32, order='F')
+    rate = obj.rate
+    try:
+        channel = wav.shape[1]
+        if channel == 2:
+            wav = to_mono(wav.T)
+        elif channel == 1:
+            wav = to_mono(wav.reshape(-1))
+    except IndexError:
+        wav = to_mono(wav.reshape(-1))
+        pass
+    except Exception as exc:
+        raise exc
+    wav = resample(wav, rate, sr)
+    wav = wav.astype(np.int16)
+    return sr, wav
 
