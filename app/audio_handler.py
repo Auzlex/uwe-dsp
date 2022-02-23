@@ -31,7 +31,7 @@ class AudioHandler(object):
         self.np_buffer = np.array([0] * self.CHUNK * self.max_buffer_time * 10)
 
         # used by the spectrograph
-        self.np_buffer = np.arange(0,0, 2)
+        self.np_buffer = np.arange(0, 0, 2)
 
          # initialize the pyaudio object
         self.p = pyaudio.PyAudio()#None # reference to pyaudio object
@@ -42,26 +42,6 @@ class AudioHandler(object):
         print( "Fetched input devices." )
 
         print( "Audio handler initialized." )
-
-    # def start(self) -> None:
-    #     """start the audio stream"""
-
-    #     print( "Starting audio stream..." )
-
-    #     # initialize the pyaudio object
-    #     #self.p = pyaudio.PyAudio()
-
-    #     # open the stream
-    #     self.stream = self.p.open(
-    #         format=self.FORMAT,
-    #         channels=self.CHANNELS,
-    #         rate=self.SAMPLE_RATE,
-    #         input=True,
-    #         stream_callback=self.callback,
-    #         frames_per_buffer=self.CHUNK
-    #     )
-
-    #     print( "Audio stream started." )
 
     def start(self, device_index:int=None, format=config.FORMAT, channels=config.CHANNELS, rate=config.SAMPLE_RATE, frames_per_buffer=config.CHUNK_SIZE  ) -> None:
         """start the audio stream"""

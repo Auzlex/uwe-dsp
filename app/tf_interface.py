@@ -87,7 +87,7 @@ class TFInterface:
         # else:
         #     return np.argmax(prediction)
 
-    def predict_mfcc(self, data):
+    def predict_formatted_data(self, data):
         """
             Method name: predict
             Method description: This method is used to predict an audio sample.

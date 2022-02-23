@@ -1163,25 +1163,25 @@ class ApplicationWindow(QMainWindow):
         # attempt to initialize an instance of the tf_interface
         #try:
 
-        # # initialize the tf_interface
-        # self.tf_model_interface = tf_interface.TFInterface(
-        #     os.path.join( 
-        #         root_dir_path, 
-        #         'tf_models', 
-        #         'MEL_CNN_lr-0.0001_b1-0.99_b2-0.999_EPOCH-500_BATCH-32_cc_v9.h5'
-        #     )
-        # )
-        # print(self.tf_model_interface.metadata)
-        # self.refresh_bar_chart()
+        # initialize the tf_interface
+        self.tf_model_interface = tf_interface.TFInterface(
+            os.path.join( 
+                root_dir_path, 
+                'tf_models', 
+                'MEL_CNN_CONV2DX4_lr-0.001_b1-0.99_b2-0.999_epsilon-1e-07_MAX_EPOCH-500_BATCH-32.h5'
+            )
+        )
+        print(self.tf_model_interface.metadata)
+        self.refresh_bar_chart()
         
-        # # except Exception as e:
-        # #     print(f"Error when initializing the TFInterface {e}")
+        # except Exception as e:
+        #     print(f"Error when initializing the TFInterface {e}")
 
-        # #initialize the 3d visualizer
-        # if len(self.tf_model_interface.layers) > 0:
-        #     self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
+        #initialize the 3d visualizer
+        if len(self.tf_model_interface.layers) > 0:
+            self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
-        #self.ai_keyed_in = True
+        self.ai_keyed_in = True
 
         #self.tf_model_interface = None
 
@@ -1380,12 +1380,16 @@ class ApplicationWindow(QMainWindow):
                     
                         #print(f"performing tf prediction dfe: {self.tf_model_interface.dfe}")
 
+                        # from self.mel normalize get a the first second in the array
+
+
+
                         if self.tf_model_interface.dfe == "mel":
-                            input_shape = (128, 259, 1)
-                            array = np.array(self.mel_normalize[:int(2 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
+                            input_shape = (128, 87, 1)#(128, 259, 1)
+                            array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
-                            input_shape = (40, 517, 1) 
-                            array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
+                            input_shape = (128, 87, 1)#(40, 517, 1) 
+                            array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                             #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
                             #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
 
@@ -1398,9 +1402,9 @@ class ApplicationWindow(QMainWindow):
                         #self.mlid_spectrogram_img.setImage(array.T, autoLevels=False)
                         array = np.resize(array, input_shape)
                         array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
-                        
+                        #array = array.reshape(array.shape[0], *input_shape)
 
-                        self.prediction = self.tf_model_interface.predict_mfcc( array )
+                        self.prediction = self.tf_model_interface.predict_formatted_data( array )
                         if self.tf_model_interface.metadata is not None:
                             print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
 

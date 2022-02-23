@@ -197,6 +197,7 @@ def save_model_ext(model, filepath, overwrite=True, meta_data=None, dfe=None):
         f.close()
 
 from librosa.core import resample, to_mono
+from librosa.util import normalize
 import wavio
 
 def downsample_mono(path, sr):
@@ -215,5 +216,46 @@ def downsample_mono(path, sr):
     except Exception as exc:
         raise exc
     wav = resample(wav, rate, sr)
-    wav = wav.astype(np.int16)
+    wav = normalize(wav)
+    #wav = wav.astype(np.int16)
     return sr, wav
+
+
+import librosa
+def extract_audio_feature(raw_audio_data, sr=None, feature_type=None, normalize=True, n_fft=1024, hop_length=512, n_mfcc=40, use_amplitude_to_db=False, tranpose=False):
+    
+    p_data = None
+
+    if sr is None:
+        print(f"sr is None")
+        return p_data
+
+    if feature_type == 'mfcc':
+
+        # mfcc extract features from stft
+        p_data = librosa.feature.mfcc(y=raw_audio_data, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length, n_fft=n_fft)
+        
+    elif feature_type == 'mel':
+
+        # mel extract features from stft
+        mel_data = librosa.feature.melspectrogram(y=raw_audio_data, sr=sr, hop_length=hop_length, n_fft=n_fft)
+        p_data = librosa.amplitude_to_db(np.abs(mel_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(mel_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
+        
+    elif feature_type == 'stft':
+
+        # stft
+        stft_data = librosa.stft(y=raw_audio_data, n_fft=n_fft, hop_length=hop_length)
+
+        # convert to db
+        p_data = librosa.amplitude_to_db(np.abs(stft_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(stft_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
+        
+    else:
+
+        print(f"feature_type {feature_type} is not supported")
+        return p_data
+
+    p_data = librosa.util.normalize(p_data) if normalize is True else p_data # return normalized processed data
+    p_data = p_data.T if tranpose is True else p_data # return transposed processed data
+    
+    # return the processed data
+    return p_data
