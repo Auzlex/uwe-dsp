@@ -138,6 +138,8 @@ class ApplicationWindow(QMainWindow):
         print("stopped listening...")
         self.ai_keyed_in = False
 
+        #self.bargraph.setOpts(width=[0]*41)
+
     def indicator_text(self):
         """
             Function: indicator_text()
@@ -1181,7 +1183,7 @@ class ApplicationWindow(QMainWindow):
         if len(self.tf_model_interface.layers) > 0:
             self.generate_3d_visualization_of_tf_model(self.tf_model_interface.layers)
 
-        self.ai_keyed_in = True
+        #self.ai_keyed_in = True
 
         #self.tf_model_interface = None
 
@@ -1289,11 +1291,8 @@ class ApplicationWindow(QMainWindow):
         # auto rotate the camera view anyway
         self.glvw.orbit(1, 0)
 
-    def update_plot(self, override = False):
+    def update_plot(self):
         """Triggered by a timer to invoke canvas to update and redraw."""
-        
-        if override:
-            print("override was invoked force update_plot!")
 
         # TODO: migrate matplot to pyqtplot
         # Thanks! https://github.com/markjay4k/Audio-Spectrum-Analyzer-in-Python/blob/master/audio_spectrumQT.py
@@ -1311,7 +1310,7 @@ class ApplicationWindow(QMainWindow):
 
             # update spectrogram if the np buffer is greater than the chunk size
             # because if its too small its not enough for the spectrogram to render
-            if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK and len(self.source) > 0:
+            if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
                 # normalize the np_buffer stream
                 normalized_y = librosa.util.normalize(self.audio_handler.np_buffer)
 
@@ -1325,8 +1324,8 @@ class ApplicationWindow(QMainWindow):
                 self.spectrogram_img.setImage(self.stft_normalize.T, autoLevels=False)
 
                 """mel-scale spectrogram""" 
-                self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE)
-                mel_db = librosa.power_to_db(np.abs(self.mel))
+                self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE)#, power=2)
+                mel_db = librosa.power_to_db(np.abs(self.mel)) #librosa.power_to_db(np.abs(self.mel))
                 self.mel_normalize = librosa.util.normalize(mel_db)
 
                 # we need to transpose the array for the spectrogram to be displayed correctly
@@ -1374,42 +1373,40 @@ class ApplicationWindow(QMainWindow):
                     # determine if the model has a desired feature extraction method embedded in it
                     if self.tf_model_interface.dfe is not None:
 
-                        input_shape = None
+                        input_shape = (128, 87, 1)#None
                         array = None
 
                     
                         #print(f"performing tf prediction dfe: {self.tf_model_interface.dfe}")
 
-                        # from self.mel normalize get a the first second in the array
-
-
-
                         if self.tf_model_interface.dfe == "mel":
-                            input_shape = (128, 87, 1)#(128, 259, 1)
+                            #input_shape = (128, 87, 1)#(128, 259, 1)
                             array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
-                            input_shape = (128, 87, 1)#(40, 517, 1) 
+                            #input_shape = (128, 87, 1)#(40, 517, 1) 
                             array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                             #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
                             #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
 
-                        # from the mfcc get only 517 frames
-                        #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
-                        # pad the mffcc_data array to the input shape
+                        if array is not None:
+                            # from the mfcc get only 517 frames
+                            #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
-                        
-                        #self.mlid_spectrogram_img.setImage(array.T, autoLevels=False)
-                        array = np.resize(array, input_shape)
-                        array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
-                        #array = array.reshape(array.shape[0], *input_shape)
+                            # pad the mffcc_data array to the input shape
 
-                        self.prediction = self.tf_model_interface.predict_formatted_data( array )
-                        if self.tf_model_interface.metadata is not None:
-                            print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+                            
+                            #self.mlid_spectrogram_img.setImage(array.T, autoLevels=False)
+                            array = np.resize(array, input_shape)
+                            array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+                            #array = array.reshape(array.shape[0], *input_shape)
 
-                            if self.prediction is not None:
-                                self.bargraph.setOpts(width=self.prediction[0])
+                            self.prediction = self.tf_model_interface.predict_formatted_data( array )
+                            if self.tf_model_interface.metadata is not None:
+                                print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
+
+                                if self.prediction is not None:
+                                    self.bargraph.setOpts(width=self.prediction[0])
 
 
         #pass
