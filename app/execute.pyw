@@ -1373,17 +1373,17 @@ class ApplicationWindow(QMainWindow):
                     # determine if the model has a desired feature extraction method embedded in it
                     if self.tf_model_interface.dfe is not None:
 
-                        input_shape = (128, 87, 1)#None
+                        input_shape = None
                         array = None
 
                     
                         #print(f"performing tf prediction dfe: {self.tf_model_interface.dfe}")
 
                         if self.tf_model_interface.dfe == "mel":
-                            #input_shape = (128, 87, 1)#(128, 259, 1)
+                            input_shape = (128, 87, 1)#(128, 259, 1)
                             array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
-                            #input_shape = (128, 87, 1)#(40, 517, 1) 
+                            input_shape = (40, 87, 1)#(40, 517, 1) 
                             array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                             #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
                             #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
