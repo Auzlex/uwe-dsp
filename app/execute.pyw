@@ -1332,7 +1332,8 @@ class ApplicationWindow(QMainWindow):
                 self.mel_spectrogram_img.setImage(self.mel_normalize.T, autoLevels=False)
 
                 """mel-frequency(scale) cepstral coefficients spectrogram""" 
-                self.mfcc = librosa.feature.mfcc(y=normalized_y, sr=self.audio_handler.stream._rate, n_mfcc=40, n_fft=config.CHUNK_SIZE, hop_length=config.HOP_LENGTH)
+                # n_mfcc=40
+                self.mfcc = librosa.feature.mfcc(y=normalized_y, sr=self.audio_handler.stream._rate, n_mfcc=config.N_MFCC, n_fft=config.CHUNK_SIZE, hop_length=config.HOP_LENGTH)
                 self.mfcc_normalize = librosa.util.normalize(self.mfcc)
                 
                 # transpose the data because for some reason they are in a weird format idk
@@ -1384,6 +1385,9 @@ class ApplicationWindow(QMainWindow):
                             array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
                             input_shape = (40, 87, 1)#(40, 517, 1) 
+                            array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
+                        elif self.tf_model_interface.dfe == "mfcc_87x87":
+                            input_shape = (87, 87, 1)#(40, 517, 1) 
                             array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                             #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
                             #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
