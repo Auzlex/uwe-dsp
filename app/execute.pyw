@@ -99,7 +99,7 @@ class ApplicationWindow(QMainWindow):
     def __init__(self): # initialization function
         super().__init__() # invoke derived class constructor
         self.ltl = 0 # also used to gate keep update timer from spamming wasting cpu usage
-        
+
         """self data references that stores np arrays of audio data"""
         self.stft = None
         self.stft_normalize = None 
@@ -207,6 +207,9 @@ class ApplicationWindow(QMainWindow):
             # adjust the audio handler stream to new device
             self.audio_handler.adjust_stream(selected_device_id, supported_srs[best_sr])
 
+            # update the fft freq plot range
+            self.update_fft_freq_range()
+
             # if self.spectrogram_img_array is not None and self.spg_canvas is not None:
             #     self.adjust_spectrogram_scale(self.spectrogram_img, self.spectrogram_img_array, sr=supported_srs[best_sr])
 
@@ -223,6 +226,15 @@ class ApplicationWindow(QMainWindow):
             
             # make sure the device id is 
             self.audio_handler.adjust_stream(selected_device_id, supported_srs[value])
+
+            # update the fft freq plot range
+            self.update_fft_freq_range()
+
+    def update_fft_freq_range(self):
+        #self.source = self.audio_handler.frame_buffer # i know not the best implementation i should give an array size
+        #self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
+        # update the fft freq plot range
+        self.fft_freq = np.abs(np.fft.fftfreq(config.CHUNK_SIZE, 1.0/self.audio_handler.stream._rate))
 
     def refresh_bar_chart(self):
 
@@ -1133,6 +1145,11 @@ class ApplicationWindow(QMainWindow):
 
             # this code starts the new audio stream of desired device and sample rate i.e the first one in the list
             self.audio_handler.adjust_stream(selected_device_id, int(self.audio_handler.available_devices_information[index]['defaultSampleRate']))
+
+            # update the fft freq plot range
+            self.update_fft_freq_range()
+
+            
             
             # https://www.tutorialspoint.com/pyqt/pyqt_qfiledialog_widget.htm
 
@@ -1216,6 +1233,8 @@ class ApplicationWindow(QMainWindow):
             Description: set the data for the plot depending on the name of the plot
         """
 
+        slen = len(self.source)
+
         # if the given name is in the self.traces dictionary
         if name in self.traces:
             # then update the data
@@ -1226,7 +1245,7 @@ class ApplicationWindow(QMainWindow):
             if name == 'amplitude':
                 self.traces[name] = self.amplitude_canvas.plot(pen=pg.mkPen({'color': "#3736FF"}), width=3)
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
-                self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
+                self.amplitude_canvas.setXRange(0, slen, padding=0.005)
 
                 if auto_scale:
                     self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
@@ -1237,7 +1256,7 @@ class ApplicationWindow(QMainWindow):
             elif name == 'amplitude2':
                 self.traces[name] = self.amplitude_canvas.plot(pen=pg.mkPen({'color': "#3736FF"}), width=3) # "c" pg.mkPen({'color': "#3736FF"})
                 self.amplitude_canvas.setYRange(-2.5, 2.5, padding=0)
-                self.amplitude_canvas.setXRange(0, len(self.source), padding=0.005)
+                self.amplitude_canvas.setXRange(0, slen, padding=0.005)
             
                 if auto_scale:
                     self.amplitude_canvas.setMouseEnabled(x=False,y=False)  
@@ -1267,7 +1286,7 @@ class ApplicationWindow(QMainWindow):
             try:
                 # we need to numpy abs, because FFT will show negative frequencies and amplitudes
                 self.fft_data = np.abs(np.fft.fft(self.source[len(self.source)-1]))
-                self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/self.audio_handler.stream._rate))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/self.audio_handler.stream._rate)
+                #self.fft_freq = np.abs(np.fft.fftfreq(len(self.fft_data), 1.0/self.audio_handler.stream._rate))#np.fft.fftfreq(len(source[len(source)-1]), 1.0/self.audio_handler.stream._rate)
             except Exception as e:
                 pass
                 #print(f"Error when calculating fft data {e}")
@@ -1281,6 +1300,9 @@ class ApplicationWindow(QMainWindow):
             for data in self.source:
                 self.simplified_data.append(np.nanmax(data)) # [np.nanmin(data), np.nanmax(data)]
                 self.negative_simplified_data.append(np.nanmin(data))
+
+            #self.simplified_data = np.amax(self.audio_handler.np_buffer, axis=0)
+            #self.negative_simplified_data = np.amin(self.audio_handler.np_buffer, axis=0) #[] # our list of our simplified data
 
             # set the wave amplitude data
             self.wave_x = list(range(len(self.simplified_data)))#list(range(len(self.source)))
@@ -1311,6 +1333,7 @@ class ApplicationWindow(QMainWindow):
             # update spectrogram if the np buffer is greater than the chunk size
             # because if its too small its not enough for the spectrogram to render
             if len(self.audio_handler.np_buffer) > self.audio_handler.CHUNK:
+
                 # normalize the np_buffer stream
                 normalized_y = librosa.util.normalize(self.audio_handler.np_buffer)
 
@@ -1344,11 +1367,13 @@ class ApplicationWindow(QMainWindow):
 
         global PYTHON_OUTPUT
 
+        pyout_len = len(PYTHON_OUTPUT)
+
         # only update on change
-        if len(PYTHON_OUTPUT) != self.ltl:
+        if pyout_len != self.ltl:
 
             # update last count
-            self.ltl = len(PYTHON_OUTPUT)
+            self.ltl = pyout_len
 
             self.textEdit.clear()
 
@@ -1358,6 +1383,51 @@ class ApplicationWindow(QMainWindow):
 
             self.textEdit.insertPlainText( str(full_string) )
             self.textEdit.moveCursor(QTextCursor.End)
+
+    def fetch_segments( self, y, input_shape ):
+
+        segments = []
+        delta_sample = int(1*self.audio_handler.stream._rate)
+
+        # reshape the data
+        try:
+            channel = input_shape[2]#y.shape[1]
+            if channel == 2:
+                y = librosa.core.to_mono(y.T)
+            elif channel == 1:
+                y = librosa.core.to_mono(y.reshape(-1))
+        except IndexError:
+            y = librosa.core.to_mono(y.reshape(-1))
+            pass
+        except Exception as exc:
+            raise exc
+
+        # cleaned audio is less than a single sample
+        #wav pad with zeros to delta_sample size
+        if y.shape[0] < delta_sample:
+            sample = np.zeros(shape=(delta_sample,), dtype=np.float32) # np.int16
+            sample[:y.shape[0]] = y
+            # append the data to our processed_samples_data array
+            array = np.resize(sample, input_shape)
+            sample = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+            #sample = sample.reshape(sample.shape[0], *input_shape)
+            segments.append(sample)
+        # step through audio and save every delta_sample
+        # discard the ending audio if it is too short
+        else:
+            trunc = y.shape[0] % delta_sample
+            for cnt, i in enumerate(np.arange(0, y.shape[0]-trunc, delta_sample)):
+                start = int(i)
+                stop = int(i + delta_sample)
+                sample = y[start:stop]
+
+                array = np.resize(sample, input_shape)
+                sample = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+                #sample = sample.reshape(sample.shape[0], *input_shape)
+                # append the data to our processed_samples_data array
+                segments.append(sample)
+
+        return np.array(segments)
 
     def perform_tf_classification(self):
         """perform a classification using the tf_interface"""
@@ -1375,25 +1445,42 @@ class ApplicationWindow(QMainWindow):
                     if self.tf_model_interface.dfe is not None:
 
                         input_shape = None
-                        array = None
+                        segments = None
+
+
 
                     
                         #print(f"performing tf prediction dfe: {self.tf_model_interface.dfe}")
 
                         if self.tf_model_interface.dfe == "mel":
-                            input_shape = (128, 87, 1)#(128, 259, 1)
-                            array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
+                            input_shape = (128, 87, 1) # i.e 128x87x1
+                            
+                            # fetch segments 
+                            segments = self.fetch_segments(self.mel_normalize, input_shape)
+                            #print(segments[0].shape)
+                            
+                            #array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])#np.pad(self.mel_normalize, (0, input_shape[1] - self.mel_normalize.shape[0]), 'constant')
                         elif self.tf_model_interface.dfe == "mfcc":
-                            input_shape = (40, 87, 1)#(40, 517, 1) 
-                            array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
+                            input_shape = (40, 87, 1) #
+                            # fetch segments 
+                            segments = self.fetch_segments(self.mfcc_normalize, input_shape)
+                            #array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                         elif self.tf_model_interface.dfe == "mfcc_87x87":
-                            input_shape = (87, 87, 1)#(40, 517, 1) 
-                            array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
+                            input_shape = (87, 87, 1)
+                            
+                            # fetch segments
+                            segments = self.fetch_segments(self.mfcc_normalize, input_shape)
+                            #array = np.array(self.mfcc_normalize[:int(1 * self.audio_handler.stream._rate)])
                             #array = np.array(self.mfcc_normalize[:int(2 * self.audio_handler.stream._rate)])
                             #array = np.pad(mfcc_normalize_local, (0, input_shape[1] - mfcc_normalize_local.shape[0]), 'constant')
+                        elif self.tf_model_interface.dfe == "mel_87x87":
+                            input_shape = (87, 87, 1)
 
+                            # fetch segments
+                            segments = self.fetch_segments(self.mel_normalize, input_shape)
+                            #array = np.array(self.mel_normalize[:int(1 * self.audio_handler.stream._rate)])
 
-                        if array is not None:
+                        if segments is not None:
                             # from the mfcc get only 517 frames
                             #mfcc_frames = np.array(self.mfcc_normalize[:, :517])
 
@@ -1401,17 +1488,22 @@ class ApplicationWindow(QMainWindow):
 
                             
                             #self.mlid_spectrogram_img.setImage(array.T, autoLevels=False)
-                            array = np.resize(array, input_shape)
-                            array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
+                            ##array = np.resize(array, input_shape)
+                            ##array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
                             #array = array.reshape(array.shape[0], *input_shape)
 
-                            self.prediction = self.tf_model_interface.predict_formatted_data( array )
+                            self.predictions = self.tf_model_interface.predict_formatted_data( segments )
+
+                            # average all the predictions
+                            self.prediction = np.mean(self.predictions, axis=0)
+
                             if self.tf_model_interface.metadata is not None:
                                 print(self.tf_model_interface.metadata[np.argmax( self.prediction, axis=None, out=None)])
 
                                 if self.prediction is not None:
                                     self.bargraph.setOpts(width=self.prediction[0])
 
+                            #pass
 
         #pass
         # try:

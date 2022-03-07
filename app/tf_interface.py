@@ -119,11 +119,13 @@ class TFInterface:
         # #array = mffc_data.resize(input_shape, refcheck=False) #np.resize(mffc_data, input_shape)
         # #array = array.reshape(1, array.shape[0], array.shape[1], array.shape[2])#array.reshape( 1, *self.model.layers[0].input_shape )#array.reshape(1, array.shape[0], array.shape[1], array.shape[2])
 
+        predictions = []
         # #self.model.layers[0].input_shape
+        for segment in data:
+            prediction = self.model.predict([segment])
+            predictions.append(prediction)
 
-        prediction = self.model.predict([data])
-
-        return prediction
+        return predictions
 
         # index = np.argmax(prediction, axis=None, out=None)
 
