@@ -1347,7 +1347,7 @@ class ApplicationWindow(QMainWindow):
                 self.spectrogram_img.setImage(self.stft_normalize.T, autoLevels=False)
 
                 """mel-scale spectrogram""" 
-                self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE)#, power=2)
+                self.mel = librosa.feature.melspectrogram(y=normalized_y, sr=self.audio_handler.stream._rate, hop_length=config.HOP_LENGTH, n_fft=config.CHUNK_SIZE,n_mels=config.N_MELS)#, power=2)
                 mel_db = librosa.power_to_db(np.abs(self.mel)) #librosa.power_to_db(np.abs(self.mel))
                 self.mel_normalize = librosa.util.normalize(mel_db)
 
