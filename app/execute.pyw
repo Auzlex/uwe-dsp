@@ -138,8 +138,6 @@ class ApplicationWindow(QMainWindow):
         print("stopped listening...")
         self.ai_keyed_in = False
 
-        #self.bargraph.setOpts(width=[0]*41)
-
     def indicator_text(self):
         """
             Function: indicator_text()
@@ -444,16 +442,14 @@ class ApplicationWindow(QMainWindow):
         #self.grid.setTickSpacing(x=10, y=10, z=10)
         self.glvw.addItem(self.grid)
 
-        self.glvw.setCameraPosition(pos=Vector( 0, ((next_shape_offset + len(layers) * 5) / 2 - (total_nn_shape/2)) * 0.025, 0 ), distance=(total_nn_shape) * 0.05)
         #del model_shape_parent
+        self.glvw.setCameraPosition(pos=Vector( 0, ((next_shape_offset + len(layers) * 5) / 2 - (total_nn_shape/2)) * 0.025, 0 ), distance=(total_nn_shape) * 0.05)
 
     def setup_user_interface(self) -> None:
         """
             Function: setup_user_interface()
-            Description: this function will setup the UI
+            Description: this function will invoke Qt5 to setup the UI
         """
-        #self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-
         # add the key_in_augmented_intelligence function to the key_in_button
         key_in_button = QAction('Attach AI', self)
         key_in_button.setShortcut('Ctrl+Q')
@@ -462,32 +458,25 @@ class ApplicationWindow(QMainWindow):
 
         # add the key_out_augmented_intelligence function to the key_in_button
         key_out_button = QAction('Detach AI', self)
-        key_out_button.setShortcut('Ctrl+W')
+        key_out_button.setShortcut('Ctrl+1')
         key_out_button.setToolTip('This button will disengage the AI from the audio stream data.')
         key_out_button.triggered.connect(self.key_out_augmented_intelligence) 
 
         # add the key_out_augmented_intelligence function to the key_in_button
         load_ml_model_button = QAction('Load H5 Model', self)
-        #load_ml_model_button.setShortcut('Ctrl+L')
+        load_ml_model_button.setShortcut('Ctrl+2')
         load_ml_model_button.setToolTip('This button will invoke a file dialog and allows you to load a TF h5 model.')
         load_ml_model_button.triggered.connect(self.fetch_h5_model) 
 
         """Microphone Selection ComboBox"""
-        # label
-        self.mscb_label = QLabel()
-        self.mscb_label.setText( "Target Microphone:" )
-
-        self.mscb = pg.ComboBox()
+        self.mscb_label = QLabel()  # create a label
+        self.mscb_label.setText( "Target Microphone:" ) # set the label text
+        self.mscb = pg.ComboBox() # create a selectable combo box
 
         """Samplerate Selection ComboBox"""
-        # label
-        self.sscb_label = QLabel()
-        self.sscb_label.setText( "Target Samplerate:" )
-
-        self.sscb = pg.ComboBox()
-        #items = {'a': 1, 'b': 2, 'c': 3}
-        #self.sscb.setItems(items)
-        #self.sscb.setValue(1)
+        self.sscb_label = QLabel() # create a label
+        self.sscb_label.setText( "Target Samplerate:" ) # set the label text
+        self.sscb = pg.ComboBox() # create a selectable combo box
 
         """Master Control Bar"""
         # add the buttons to the toolbar
