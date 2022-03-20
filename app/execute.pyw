@@ -181,7 +181,7 @@ class ApplicationWindow(QMainWindow):
         """
         print(f"microphone DEVICE change requested -> switching to device: {self.audio_handler.available_devices_information[value]['name']}")
 
-        if self.audio_handler is not None:
+        if self.audio_handler is not None: # make sure the audio handler is initialized
 
             # disconnect the sample rate change listener to prevent audio handler and devices spamming new stream creations
             try:
@@ -189,15 +189,17 @@ class ApplicationWindow(QMainWindow):
             except Exception as e:
                 print(f"disconnect error: {e}")
 
+            # update the currently selected microphones available sample rates for selection
             self.populate_microphone_sample_rates()
 
+            # get the selected device index from the audio handler
             selected_device_id = self.audio_handler.available_devices_information[value]['index']
+
+            # fetch the supported sample rates from the audio handler
             supported_srs = self.audio_handler.fetch_supported_sample_rates(selected_device_id)
+
+            # get the recommended sample rate that the selected device prefers
             best_sr = supported_srs.index(int(self.audio_handler.available_devices_information[value]['defaultSampleRate']))
-            
-            # #print(f"{supported_srs}, b: {best_sr}")
-            # self.sscb.setItems( [ str(x) for x in supported_srs ] )
-            # self.sscb.setCurrentIndex(best_sr)
 
             # reconnect the sample rate change listener so if a user wants to change they can do
             self.sscb.currentIndexChanged.connect(self.samplerate_selection_changed)
@@ -207,9 +209,6 @@ class ApplicationWindow(QMainWindow):
 
             # update the fft freq plot range
             self.update_fft_freq_range()
-
-            # if self.spectrogram_img_array is not None and self.spg_canvas is not None:
-            #     self.adjust_spectrogram_scale(self.spectrogram_img, self.spectrogram_img_array, sr=supported_srs[best_sr])
 
         else:
             self.sscb.setItems( [ "No Audio Handler" ] )
