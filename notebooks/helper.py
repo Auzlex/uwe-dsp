@@ -222,7 +222,7 @@ def downsample_mono(path, sr):
 
 
 import librosa
-def extract_audio_feature(raw_audio_data, sr=None, feature_type=None, normalize=True, n_fft=1024, hop_length=512, n_mfcc=40, use_amplitude_to_db=False, tranpose=False):
+def extract_audio_feature(raw_audio_data, sr=None, feature_type=None, normalize=True, n_fft=1024, hop_length=512, n_mfcc=87, n_mels=87, use_amplitude_to_db=False, tranpose=False):
     
     p_data = None
 
@@ -238,7 +238,7 @@ def extract_audio_feature(raw_audio_data, sr=None, feature_type=None, normalize=
     elif feature_type == 'mel':
 
         # mel extract features from stft
-        mel_data = librosa.feature.melspectrogram(y=raw_audio_data, sr=sr, hop_length=hop_length, n_fft=n_fft)
+        mel_data = librosa.feature.melspectrogram(y=raw_audio_data, sr=sr, hop_length=hop_length, n_fft=n_fft, n_mels=n_mels)
         p_data = librosa.amplitude_to_db(np.abs(mel_data)) if use_amplitude_to_db is True else librosa.power_to_db(np.abs(mel_data)) # power_to_db can remove noise and simplify patterns in signals but it is not accurate???
         
     elif feature_type == 'stft':
