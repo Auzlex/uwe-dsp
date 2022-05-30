@@ -21,7 +21,7 @@ This research project compares each of the following convolution neural network 
 <br>
 <br>
 <p align="center">
-    <img src="[./documents/nn_models.png](https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/nn_models.png)" width=70%>
+    <img src="https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/nn_models.png" width=70%>
 </p>
 
 ## Directory
@@ -66,7 +66,7 @@ The attributes are attached with the h5 model refer to the helper.py load & save
 ## Interface program
 This is an old screenshot of the interface program running a simple CNN model classifying audio sounds. In this example, the interface program is showing a linear-scale spectrogram, a mel scaled variant and a MFCC. The bar chart shows the multiple labels that can be predicted by the model as the metadata is embedded within it.
 <p align="center">
-    <img src="[./documents/python3.8_2022-03-31_14-15-48.png](https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/python3.8_2022-03-31_14-15-48.png)" width=70%>
+    <img src="https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/python3.8_2022-03-31_14-15-48.png" width=70%>
 </p>
 
 The interface program will function and switch input devices on both windows and the Linux distribution Fedora 35(only tested linux distribution)
