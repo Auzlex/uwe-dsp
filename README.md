@@ -25,7 +25,7 @@ This research project compares each of the following convolution neural network 
 </p>
 
 ## Directory
-Brief directory overview
+Brief directory summary
 ```
 project
 │   README.md
@@ -61,10 +61,10 @@ H5 Model Attributes to work with interface program
 │   │   
 │   └─── dfe: the desired feature extraction method the model wants
 ```
-The attributes are attached with the h5 model refer to the helper.py load & save ext functions, they tell the interface program what the model expects, granted not perfect but sufficient to meet the deadline of this research project.
+The attributes are attached with the h5 model refer to the helper.py load & save ext functions, they tell the interface program what the model expects.
 
 ## Interface program
-This is an old screenshot of the interface program running a simple CNN model classifying audio sounds. In this example, the interface program is showing a linear-scale spectrogram, a mel scaled variant and a MFCC. The bar chart shows the multiple labels that can be predicted by the model as the metadata is embedded within it.
+This is a screenshot of the interface program running a simple CNN model classifying audio sounds. In this example, the interface program is showing a linear-scale spectrogram, a mel scaled variant and a MFCC. The bar chart shows the multiple labels that can be predicted by the model as the metadata is embedded within it.
 <p align="center">
     <img src="https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/python3.8_2022-03-31_14-15-48.png" width=70%>
 </p>
