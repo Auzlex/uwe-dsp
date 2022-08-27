@@ -1,20 +1,20 @@
 # UWE Digital Systems Project
-This repository is the result of my final year project for my dissertation at the university of the west of england. 
+This repository is the result of my final year dissertation project at the University of the West of England, Bristol. 
 
 ## Project Aim
 
-This project is aiming at helping people & researchers understand audio signals and its classification by visualising the signal as well as evaluating state of the art audio feature extraction and classification methods.
+This project is aimed at helping people and researchers understand audio signals and its classification by visualising the signal, as well as evaluating state of the art audio feature extraction and classification methods.
 
 ## Project Objectives
 
-* Research into existing methods of feature extraction for audio.
+* Research into existing methods of audio feature extraction.
 * Research into neural networks for audio classification
 * Identify a good performing neural network architecture for audio classification
-* Design, build and, implement a cross platform interface program to visualize audio signals with at least 2 latest feature extraction methods (MFCC, Spectrograms, Mel Spectrograms).
+* Design, build and, implement a cross platform interface program to visualize audio signals with at least 2 of the latest feature extraction methods (MFCC, Spectrograms, Mel Spectrograms).
 * Train Existing Neural Network Architectures on the Kaggle2018 Dataset.
 * Compare and analyse different neural network architectures (with the same dataset) in conjunction with different feature extraction methods.
 * Identify the best hyper parameters for different neural network architectures that yield best accuracy for audio classification.
-* Identify the advantages and limitations of each used feature extraction method.
+* Identify the advantages and limitations of each feature extraction method used.
 
 ## CNN Architectures
 This research project compares each of the following convolution neural network architectures:
@@ -61,18 +61,18 @@ H5 Model Attributes to work with interface program
 │   │   
 │   └─── dfe: the desired feature extraction method the model wants
 ```
-The attributes are attached with the h5 model refer to the helper.py load & save ext functions, they tell the interface program what the model expects.
+The attributes are attached with the h5 model, refer to the helper.py load & save ext functions, they instruct the interface program what the model expects.
 
 ## Interface program
-This is a screenshot of the interface program running a simple CNN model classifying audio sounds. In this example, the interface program is showing a linear-scale spectrogram, a mel scaled variant and a MFCC. The bar chart shows the multiple labels that can be predicted by the model as the metadata is embedded within it.
+Hereafter is a screenshot of the interface program running a simple CNN model classifying audio sounds. In this example, the interface program is showing a linear-scale spectrogram, a mel scaled variant and a MFCC. The bar chart depicts the multiple labels that can be predicted by the model since the metadata is embedded within it.
 <p align="center">
     <img src="https://raw.githubusercontent.com/Auzlex/uwe-dsp/main/documents/python3.8_2022-03-31_14-15-48.png" width=70%>
 </p>
 
-The interface program will function and switch input devices on both windows and the Linux distribution Fedora 35(only tested linux distribution)
+The interface program will function and switch input devices on both windows and the Linux distribution Fedora 35(in this case, it was only tested upon that specified linux distribution)
 
 ## Trained Models
 
 Trained models can be found on Google Drive here:
 
-* I have yet to upload them to google drive as I am in the middle of reorganizing my personal computers storage
+https://drive.google.com/file/d/1shlnOvHh2BxEb_HjnXWw21mapsjMiknh/view?usp=sharing
